@@ -1,0 +1,122 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import webhookRouter from './routes/webhook.js';
+import authRouter from './routes/auth.js';
+import messagesRouter from './routes/messages.js';
+import instanceRouter from './routes/instance.js';
+import aiRouter from './routes/ai.js';
+import leadsRouter from './routes/leads.js';
+import metricsRouter from './routes/metrics.js';
+import { setupSocket } from './services/socket.js';
+import { authMiddleware, requireOnboarded } from './middleware/auth.js';
+import { PROVIDER, isEvolution } from './services/provider.js';
+import { aiRuntime } from './services/ai.js';
+import { releaseModelPauses } from './services/autoReply.js';
+import { countAccounts, listAccountIds } from './services/accounts.js';
+import { hasLegacyData } from './services/redis.js';
+
+const app = express();
+const httpServer = createServer(app);
+
+export const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
+});
+
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+
+// A Evolution API manda payloads grandes (sync de histórico, contatos,
+// mídia em base64) — o padrão de 100kb do body-parser estoura.
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '25mb' }));
+
+// Rotas públicas (o provider entrega as mensagens aqui)
+app.use('/webhook', webhookRouter);
+
+// Cadastro e login — as únicas rotas de API sem sessão
+app.use('/api/auth', authRouter);
+
+// Pareamento do número: exige sessão, mas NÃO exige onboarding concluído —
+// é justamente a tela que conclui o onboarding.
+if (isEvolution) {
+  app.use('/api/instance', authMiddleware, instanceRouter);
+}
+
+// O resto do produto só abre depois do WhatsApp conectado
+const protected_ = [authMiddleware, requireOnboarded];
+
+app.use('/api/messages', protected_, messagesRouter);
+app.use('/api/ai', protected_, aiRouter);
+app.use('/api/leads', protected_, leadsRouter);
+app.use('/api/metrics', protected_, metricsRouter);
+
+// Tratamento de erro final. Corpo ilegível no webhook responde 200 de
+// propósito: sem body parseado não há nada a processar, e um 4xx só faria
+// o provider reenviar o mesmo payload em loop.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+
+  const badBody = err.type === 'entity.too.large' || err.type === 'entity.parse.failed';
+
+  if (badBody) {
+    console.warn(`⚠️  Corpo rejeitado em ${req.method} ${req.originalUrl}: ${err.type} (${err.length ?? '?'} bytes)`);
+    if (req.path.startsWith('/webhook') || req.originalUrl.startsWith('/webhook')) {
+      return res.sendStatus(200);
+    }
+    return res.status(413).json({ error: 'Payload muito grande' });
+  }
+
+  console.error(`Erro em ${req.method} ${req.originalUrl}:`, err.message);
+  res.status(500).json({ error: 'Erro interno' });
+});
+
+setupSocket(io);
+
+/**
+ * Migração de boot: solta conversas que ficaram `aiPaused` por handoff do
+ * modelo (comportamento antigo). Roda por conta, já que os dados agora são
+ * namespaceados.
+ */
+async function bootMigrations() {
+  const ids = await listAccountIds();
+  let released = 0;
+
+  for (const id of ids) {
+    released += await releaseModelPauses(id);
+  }
+
+  if (released) {
+    console.log(`↩️  ${released} conversa(s) liberada(s) de handoff antigo`);
+  }
+
+  if (ids.length === 0 && await hasLegacyData()) {
+    console.log('📦 Há conversas da versão sem contas — a primeira conta criada vai adotá-las.');
+  }
+}
+
+const PORT = process.env.PORT || 3001;
+httpServer.listen(PORT, async () => {
+  console.log(`🟢 Servidor rodando na porta ${PORT}`);
+  console.log(`   Provider: ${PROVIDER}`);
+  console.log(`   Webhook:  POST /webhook`);
+  console.log(`   Auth:     POST /api/auth/signup  |  POST /api/auth/login`);
+  console.log(`   API:      /api/messages  /api/leads  /api/metrics  (exigem WhatsApp conectado)`);
+  console.log(`   IA:       ${aiRuntime().configured ? `${aiRuntime().model} (effort ${aiRuntime().effort})` : 'desligada — falta ANTHROPIC_API_KEY'}`);
+
+  if (isEvolution) {
+    console.log(`   Instância: GET /api/instance  |  GET /api/instance/qr`);
+  } else {
+    console.log(`   Provider meta: um número para toda a instalação — multi-tenant só no provider evolution`);
+  }
+
+  try {
+    console.log(`   Contas:   ${await countAccounts()}`);
+    await bootMigrations();
+  } catch (err) {
+    console.warn('⚠️  Migrações de boot falharam:', err.message);
+  }
+});
