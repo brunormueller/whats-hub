@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: bjjia-backend
+
+    restart: unless-stopped
+
+    env_file:
+      - ./backend/.env
+
+    expose:
+      - "3001"
+
+    networks:
+      - bjjia_default
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: bjjia-frontend
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - bjjia_default
+
+networks:
+  bjjia_default:
+    external: true

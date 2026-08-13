@@ -16,14 +16,14 @@ import { sendWhatsAppMessage, sendPresence } from './provider.js';
 import { aiConfigured, generateReply } from './ai.js';
 import { getAiConfig } from './aiConfig.js';
 import { handleLead } from './leads.js';
+import { instanceTarget } from './accounts.js';
 import {
   formatMessage,
   saveMessage,
   getConversation,
   getConversationMeta,
   setConversationFlags,
-  listConversations,
-} from './redis.js';
+} from './store.js';
 import { broadcastMessage, broadcastConversationUpdate } from './socket.js';
 
 // Duas mensagens em sequência do mesmo número não podem virar duas chamadas
@@ -75,7 +75,7 @@ async function typeBeforeSend({ account, phoneNumber, text, config, history }) {
   if (delayMs <= 0) return;
 
   await Promise.all([
-    sendPresence(account.instanceName, phoneNumber, {
+    sendPresence(instanceTarget(account), phoneNumber, {
       presence: 'composing',
       delayMs,
       messageId: lastInboundId(history),
@@ -136,7 +136,7 @@ async function replyOnce(io, account, phoneNumber) {
       // Ritmo humano: o indicador aparece e a mensagem só sai depois da pausa.
       await typeBeforeSend({ account, phoneNumber, text, config, history });
 
-      await sendWhatsAppMessage(account.instanceName, phoneNumber, text);
+      await sendWhatsAppMessage(instanceTarget(account), phoneNumber, text);
 
       const message = formatMessage(phoneNumber, text, 'outbound', {
         label: config.agentName,
@@ -179,23 +179,6 @@ async function replyOnce(io, account, phoneNumber) {
     // salva e o operador continua vendo a conversa no dashboard.
     console.error(`⚠️  Resposta automática falhou para ${phoneNumber}:`, err.message);
   }
-}
-
-/**
- * Migração de boot: antes o handoff gravava `aiPaused: true` e a conversa
- * ficava muda para sempre (não existia nem botão de retomar no dashboard).
- * Agora só pausa humana cala a IA — solta as conversas presas pelo modelo,
- * mantendo a marca de escalada para o operador não perder o alerta.
- */
-export async function releaseModelPauses(accountId) {
-  const stuck = (await listConversations(accountId))
-    .filter((c) => c.aiPaused && c.pausedBy !== 'human');
-
-  for (const c of stuck) {
-    await setConversationFlags(accountId, c.phoneNumber, { aiPaused: false, needsHuman: true });
-  }
-
-  return stuck.length;
 }
 
 /** Operador assume a conversa: a IA para de responder este número. */

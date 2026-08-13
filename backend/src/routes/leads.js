@@ -5,7 +5,7 @@
  * GET /api/leads/:phone     → o lead de uma conversa
  */
 import { Router } from 'express';
-import { listLeads, getLead } from '../services/redis.js';
+import { listLeads, getLead } from '../services/store.js';
 
 const router = Router();
 

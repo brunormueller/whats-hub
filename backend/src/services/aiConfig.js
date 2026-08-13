@@ -1,12 +1,12 @@
 /**
  * Configuração de comportamento do agente (tela "Comportamento da IA").
  *
- * Uma configuração por conta. O front publica o objeto inteiro em
- * PUT /api/ai/config; aqui ele é persistido no Redis e lido pelo webhook a
- * cada mensagem recebida. Os defaults abaixo espelham AI_DEFAULTS do front —
- * servem de fallback enquanto nada foi publicado.
+ * Uma configuração por conta (coleção `aiConfigs`, `_id` = accountId). O front
+ * publica o objeto inteiro em PUT /api/ai/config; aqui ele é persistido e lido
+ * pelo webhook a cada mensagem recebida. Os defaults abaixo espelham
+ * AI_DEFAULTS do front — servem de fallback enquanto nada foi publicado.
  */
-import redis, { aiConfigKey } from './redis.js';
+import { aiConfigs } from './mongo.js';
 
 export const AI_CONFIG_DEFAULTS = {
   // Liga/desliga a resposta automática (é o switch "IA ativa" do inbox)
@@ -84,26 +84,19 @@ export const AI_CONFIG_DEFAULTS = {
   ],
 };
 
-// Cache em memória por conta: evita um GET no Redis por mensagem recebida.
-// Invalidado na escrita, que é o único caminho de alteração.
+// Cache em memória por conta: evita uma leitura no banco por mensagem
+// recebida. Invalidado na escrita, que é o único caminho de alteração.
 const cache = new Map();
 
 export async function getAiConfig(accountId) {
+  if (!accountId) throw new Error('accountId é obrigatório para ler a configuração da IA');
+
   const cached = cache.get(accountId);
   if (cached) return cached;
 
-  const raw = await redis.get(aiConfigKey(accountId));
-  let stored = null;
+  const doc = await aiConfigs().findOne({ _id: accountId }, { projection: { _id: 0 } });
 
-  if (raw) {
-    try {
-      stored = JSON.parse(raw);
-    } catch {
-      console.warn(`⚠️  ai:config de ${accountId} corrompido no Redis — usando os defaults`);
-    }
-  }
-
-  const config = { ...AI_CONFIG_DEFAULTS, ...(stored || {}) };
+  const config = { ...AI_CONFIG_DEFAULTS, ...(doc || {}) };
   cache.set(accountId, config);
   return config;
 }
@@ -112,7 +105,9 @@ export async function getAiConfig(accountId) {
 export async function saveAiConfig(accountId, patch) {
   const current = await getAiConfig(accountId);
   const next = { ...current, ...patch };
-  await redis.set(aiConfigKey(accountId), JSON.stringify(next));
+
+  await aiConfigs().updateOne({ _id: accountId }, { $set: next }, { upsert: true });
   cache.set(accountId, next);
+
   return next;
 }

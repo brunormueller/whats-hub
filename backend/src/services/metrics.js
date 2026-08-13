@@ -1,5 +1,5 @@
 /**
- * Métricas da conta, calculadas em cima do que já existe no Redis
+ * Métricas da conta, calculadas em cima do que já está gravado
  * (metadados das conversas + leads). Sem tabela de eventos própria: o volume
  * de uma conta cabe em memória e o cálculo é rápido.
  *
@@ -8,7 +8,7 @@
  * que os metadados guardam. Os campos abaixo são todos derivados de dados que
  * o produto de fato grava.
  */
-import { listConversations, listLeads } from './redis.js';
+import { listConversations, listLeads } from './store.js';
 
 const DAY_MS = 86400000;
 

@@ -813,34 +813,36 @@ export default function Landing({ onSignup, onLogin, showMetrics = true }) {
 
             <div
               style={{
+                display: "flex",
                 padding: 28,
                 borderRadius: 16,
                 border: "1px solid rgba(255,255,255,.08)",
                 background: "linear-gradient(140deg,#121A16,#0D1210)",
               }}
             >
-              <h3 style={{ ...cardTitle, font: `700 19px/1.3 ${JAK}` }}>
-                Seu número, sua conta
-              </h3>
-              <p style={{ ...cardText, marginBottom: 18 }}>
-                Sem migrar para número oficial da Meta, sem perder histórico e
-                sem depender de aprovação. Conecta com um QR code.
-              </p>
+              <div>
+                <h3 style={{ ...cardTitle, font: `700 19px/1.3 ${JAK}` }}>
+                  Seu número, sua conta
+                </h3>
+                <p style={{ ...cardText, marginBottom: 18 }}>
+                  Sem migrar para número oficial da Meta, sem perder histórico e
+                  sem depender de aprovação. Conecta com um QR code.
+                </p>
+              </div>
+
               <div
                 style={{
-                  height: 118,
+                  width: 160,
+                  height: 120,
                   borderRadius: 12,
                   border: "1px dashed rgba(255,255,255,.14)",
-                  background:
-                    "repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 8px,transparent 8px 16px)",
-                  display: "grid",
-                  placeItems: "center",
-                  font: `400 11.5px/1 ${MONO}`,
-                  color: "#6F8478",
+                  background: "#fff",
+                  backgroundImage: 'url("/qr-code.png")',
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
+                  backgroundSize: "120px 120px",
                 }}
-              >
-                print do QR code de conexão
-              </div>
+              />
             </div>
           </div>
         </div>

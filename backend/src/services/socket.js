@@ -1,4 +1,4 @@
-import { listConversations, markAsRead } from './redis.js';
+import { listConversations, markAsRead } from './store.js';
 import { verifyToken } from './tokens.js';
 import { getAccount } from './accounts.js';
 import { isEvolution } from './provider.js';

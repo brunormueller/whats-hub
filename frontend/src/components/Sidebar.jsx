@@ -1,4 +1,4 @@
-import { Hover, HOVER_MUTED } from "../ui.jsx";
+import { Hover, HOVER_MUTED, Switch } from "../ui.jsx";
 
 const NAV_MAIN = [
   { k: "dashboard", label: "Painel", icon: "◨" },
@@ -106,6 +106,8 @@ export default function Sidebar({
   onToggleTheme,
   unread,
   onLogout,
+  aiEnabled,
+  onToggleAi,
 }) {
   const workspace = account?.company || account?.name || "Sua conta";
 
@@ -230,6 +232,32 @@ export default function Sidebar({
           gap: 8,
         }}
       >
+        {/* Desligar a resposta automática precisa funcionar de QUALQUER tela e
+            sem depender de ter conversa aberta — se a IA começa a responder
+            errado, procurar onde clicar não é opção. Por isso mora aqui e não
+            dentro do inbox. */}
+        <div
+          style={{
+            ...footerBtn,
+            cursor: "default",
+            borderColor: aiEnabled ? "var(--bd)" : "var(--pri)",
+          }}
+        >
+          <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ color: "var(--fg)", fontWeight: 500 }}>
+              Resposta automática
+            </span>
+            <span style={{ fontSize: 11 }}>
+              {aiEnabled ? "IA atendendo" : "desligada — ninguém responde"}
+            </span>
+          </span>
+          <Switch
+            on={aiEnabled}
+            onChange={onToggleAi}
+            title={aiEnabled ? "Desligar a IA" : "Ligar a IA"}
+          />
+        </div>
+
         <Hover
           onClick={onToggleTheme}
           style={footerBtn}

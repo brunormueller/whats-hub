@@ -5,7 +5,7 @@ import {
   instanceFromWebhook,
   isEvolution,
 } from '../services/provider.js';
-import { formatMessage, saveMessage } from '../services/redis.js';
+import { formatMessage, saveMessage } from '../services/store.js';
 import { broadcastMessage } from '../services/socket.js';
 import { maybeAutoReply } from '../services/autoReply.js';
 import { countAccounts, findByInstance, listAccountIds, getAccount } from '../services/accounts.js';

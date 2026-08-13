@@ -13,11 +13,15 @@ services:
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://evolution:evolution@evolution-postgres:5432/evolution?schema=public
       DATABASE_CONNECTION_CLIENT_NAME: whatsapp_hub
+      # O registro da instância fica: é como a Evolution encontra a sessão.
       DATABASE_SAVE_DATA_INSTANCE: "true"
-      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
-      DATABASE_SAVE_MESSAGE_UPDATE: "true"
-      DATABASE_SAVE_DATA_CONTACTS: "true"
-      DATABASE_SAVE_DATA_CHATS: "true"
+      # Mensagens, contatos e chats NÃO ficam: o hub guarda o próprio histórico
+      # no Mongo (coleções messages/conversations). Deixar ligado gravaria o
+      # mesmo dado em dois bancos dentro dos 200 GB do free tier.
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
 
       CACHE_REDIS_ENABLED: "true"
       CACHE_REDIS_URI: redis://evolution-redis:6379/6
@@ -83,7 +87,27 @@ services:
     volumes:
       - evolution_redis:/data
 
+  # Banco do hub: base única do SaaS. Cada cliente é identificado por
+  # `accountId` nos documentos, não por banco separado.
+  hub-mongo:
+    image: mongo:7
+    container_name: hub-mongo
+    restart: unless-stopped
+    # Sem cap o WiredTiger reserva ~50% da RAM da máquina — na VM de 24 GB são
+    # 12 GB que as sessões do Baileys precisam mais do que o cache.
+    command: ["--wiredTigerCacheSizeGB", "1.5"]
+    # Preso no loopback: a VM tem IP público, e "27017:27017" publicaria o
+    # banco na internet.
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: hub
+      MONGO_INITDB_ROOT_PASSWORD: hub
+    volumes:
+      - hub_mongodata:/data/db
+
 volumes:
   evolution_instances:
   evolution_pgdata:
   evolution_redis:
+  hub_mongodata:

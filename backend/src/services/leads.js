@@ -10,7 +10,8 @@
  *   - falha no aviso não desfaz o lead nem derruba o atendimento.
  */
 import { sendWhatsAppMessage } from './provider.js';
-import { saveLead, setConversationFlags } from './redis.js';
+import { instanceTarget } from './accounts.js';
+import { saveLead, setConversationFlags } from './store.js';
 import { broadcastConversationUpdate, broadcastLead } from './socket.js';
 
 /** Só dígitos: "+55 (11) 99999-0000" → "5511999990000" */
@@ -52,7 +53,7 @@ async function notifyOwner({ account, config, lead, phoneNumber }) {
   if (to === digits(phoneNumber)) return { skipped: 'notifyPhone é o próprio cliente' };
 
   // Sai pelo número da própria conta — o aviso não vaza para outro tenant.
-  await sendWhatsAppMessage(account.instanceName, to, notificationText({
+  await sendWhatsAppMessage(instanceTarget(account), to, notificationText({
     lead,
     phoneNumber: digits(phoneNumber),
     agentName: config.agentName,

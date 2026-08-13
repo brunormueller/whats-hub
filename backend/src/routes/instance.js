@@ -6,16 +6,17 @@ import {
   logoutInstance,
   setWebhook,
 } from '../services/evolution.js';
-import { markOnboarded } from '../services/accounts.js';
+import { markOnboarded, instanceTarget } from '../services/accounts.js';
 
 const router = Router();
 
 /**
  * A instância é a da conta logada — não vem do .env. Isso é o que mantém o
- * número de cada cliente separado na mesma Evolution API.
+ * número de cada cliente separado, e o `evolutionUrl` da conta diz em qual
+ * container aquela sessão vive.
  */
 function instanceOf(req) {
-  return req.account.instanceName;
+  return instanceTarget(req.account);
 }
 
 /** Encapsula o erro do provider em uma resposta HTTP */

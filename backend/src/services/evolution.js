@@ -6,8 +6,9 @@
  * Docs: https://doc.evolution-api.com
  */
 
-function config() {
-  const baseUrl = (process.env.EVOLUTION_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
+function config(baseUrlOverride) {
+  const baseUrl = (baseUrlOverride || process.env.EVOLUTION_API_URL || 'http://localhost:8080')
+    .replace(/\/+$/, '');
   const apiKey = process.env.EVOLUTION_API_KEY;
 
   if (!apiKey) {
@@ -18,16 +19,29 @@ function config() {
 }
 
 /**
- * A instância vem da conta (`account.instanceName`), não do .env: cada conta
- * pareia o próprio número na mesma Evolution API.
+ * Alvo de uma chamada: qual instância, em qual container.
+ *
+ * A instância vem da conta (`account.instanceName`), não do .env — cada cliente
+ * pareia o próprio número. `evolutionUrl` também vem da conta: um container
+ * aguenta umas dezenas de sessões do Baileys, então mais clientes significa
+ * mais containers, e a sessão de cada cliente vive no volume de um só. Sem a
+ * URL no documento, distribuir exigiria mexer em toda esta camada.
+ *
+ * Aceita string (resolve pelo .env, usado no provider `meta` e em scripts) ou
+ * `{ instanceName, evolutionUrl }`.
  */
-function requireInstance(instance) {
-  if (!instance) throw new Error('Instância da Evolution não informada');
-  return instance;
+function target(instance) {
+  const name = typeof instance === 'string' ? instance : instance?.instanceName;
+  if (!name) throw new Error('Instância da Evolution não informada');
+
+  return {
+    name,
+    baseUrl: typeof instance === 'string' ? undefined : instance?.evolutionUrl,
+  };
 }
 
-async function request(path, { method = 'GET', body } = {}) {
-  const { baseUrl, apiKey } = config();
+async function request(path, { method = 'GET', body, baseUrl: override } = {}) {
+  const { baseUrl, apiKey } = config(override);
 
   let response;
   try {
@@ -68,8 +82,11 @@ export function normalizeNumber(value = '') {
  * Envia uma mensagem de texto pela instância da conta
  */
 export async function sendWhatsAppMessage(instance, to, text) {
-  return request(`/message/sendText/${requireInstance(instance)}`, {
+  const { name, baseUrl } = target(instance);
+
+  return request(`/message/sendText/${name}`, {
     method: 'POST',
+    baseUrl,
     body: {
       number: normalizeNumber(to),
       text,
@@ -86,8 +103,11 @@ export async function sendWhatsAppMessage(instance, to, text) {
  * WhatsApp Cloud API, que exige o id da mensagem recebida).
  */
 export async function sendPresence(instance, to, { presence = 'composing', delayMs = 2000 } = {}) {
-  return request(`/chat/sendPresence/${requireInstance(instance)}`, {
+  const { name, baseUrl } = target(instance);
+
+  return request(`/chat/sendPresence/${name}`, {
     method: 'POST',
+    baseUrl,
     body: {
       number: normalizeNumber(to),
       delay: delayMs,
@@ -183,13 +203,14 @@ function webhookConfig() {
  * e nós tratamos como "já criada")
  */
 export async function createInstance(instance) {
-  requireInstance(instance);
+  const { name, baseUrl } = target(instance);
 
   try {
     return await request('/instance/create', {
       method: 'POST',
+      baseUrl,
       body: {
-        instanceName: instance,
+        instanceName: name,
         integration: 'WHATSAPP-BAILEYS',
         qrcode: true,
         webhook: webhookConfig(),
@@ -197,7 +218,7 @@ export async function createInstance(instance) {
     });
   } catch (err) {
     if (/40[39]|already in use|already exists/i.test(err.message)) {
-      return { instance, alreadyExists: true };
+      return { instance: name, alreadyExists: true };
     }
     throw err;
   }
@@ -210,8 +231,11 @@ export async function setWebhook(instance) {
   const webhook = webhookConfig();
   if (!webhook) throw new Error('EVOLUTION_WEBHOOK_URL não definida no .env');
 
-  return request(`/webhook/set/${requireInstance(instance)}`, {
+  const { name, baseUrl } = target(instance);
+
+  return request(`/webhook/set/${name}`, {
     method: 'POST',
+    baseUrl,
     body: { webhook },
   });
 }
@@ -222,13 +246,13 @@ export async function setWebhook(instance) {
  * dígitos em vez de exigir a leitura da câmera.
  */
 export async function connectInstance(instance, number) {
-  requireInstance(instance);
+  const { name, baseUrl } = target(instance);
   const digits = number ? normalizeNumber(number) : '';
   const query = digits ? `?number=${digits}` : '';
-  const payload = await request(`/instance/connect/${instance}${query}`);
+  const payload = await request(`/instance/connect/${name}${query}`, { baseUrl });
 
   return {
-    instance,
+    instance: name,
     qrcode: payload?.base64 || null,
     pairingCode: payload?.pairingCode || null,
     code: payload?.code || null,
@@ -245,17 +269,17 @@ export async function connectInstance(instance, number) {
  * ou 'not_found' (instância ainda não criada na Evolution).
  */
 export async function connectionState(instance) {
-  requireInstance(instance);
+  const { name, baseUrl } = target(instance);
 
   try {
-    const payload = await request(`/instance/connectionState/${instance}`);
+    const payload = await request(`/instance/connectionState/${name}`, { baseUrl });
     return {
-      instance,
+      instance: name,
       state: payload?.instance?.state || payload?.state || 'unknown',
     };
   } catch (err) {
     if (/\(404 /.test(err.message)) {
-      return { instance, state: 'not_found' };
+      return { instance: name, state: 'not_found' };
     }
     throw err;
   }
@@ -265,5 +289,6 @@ export async function connectionState(instance) {
  * Desconecta o número da instância (mantém a instância criada)
  */
 export async function logoutInstance(instance) {
-  return request(`/instance/logout/${requireInstance(instance)}`, { method: 'DELETE' });
+  const { name, baseUrl } = target(instance);
+  return request(`/instance/logout/${name}`, { method: 'DELETE', baseUrl });
 }

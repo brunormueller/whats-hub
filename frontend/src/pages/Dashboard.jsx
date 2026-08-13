@@ -252,6 +252,8 @@ export default function Dashboard({
         onToggleTheme={onToggleTheme}
         unread={unread}
         onLogout={onLogout}
+        aiEnabled={aiEnabled}
+        onToggleAi={toggleAi}
       />
 
       <main

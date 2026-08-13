@@ -6,7 +6,8 @@ import {
   saveMessage,
   getConversation,
   listConversations,
-} from '../services/redis.js';
+} from '../services/store.js';
+import { instanceTarget } from '../services/accounts.js';
 import { broadcastMessage } from '../services/socket.js';
 import { getAiConfig } from '../services/aiConfig.js';
 import { pauseAi } from '../services/autoReply.js';
@@ -45,7 +46,7 @@ router.post('/:phoneNumber', async (req, res) => {
 
   // Sai pelo número da própria conta (instância da Evolution dela)
   try {
-    await sendWhatsAppMessage(account.instanceName, phoneNumber, text);
+    await sendWhatsAppMessage(instanceTarget(account), phoneNumber, text);
   } catch (err) {
     console.error('Falha ao enviar:', err.message);
     return res.status(502).json({ error: err.message });

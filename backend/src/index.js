@@ -14,9 +14,8 @@ import { setupSocket } from './services/socket.js';
 import { authMiddleware, requireOnboarded } from './middleware/auth.js';
 import { PROVIDER, isEvolution } from './services/provider.js';
 import { aiRuntime } from './services/ai.js';
-import { releaseModelPauses } from './services/autoReply.js';
-import { countAccounts, listAccountIds } from './services/accounts.js';
-import { hasLegacyData } from './services/redis.js';
+import { countAccounts } from './services/accounts.js';
+import { connect, ensureIndexes } from './services/mongo.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -76,47 +75,39 @@ app.use((err, req, res, next) => {
 
 setupSocket(io);
 
+const PORT = process.env.PORT || 3001;
+
 /**
- * Migração de boot: solta conversas que ficaram `aiPaused` por handoff do
- * modelo (comportamento antigo). Roda por conta, já que os dados agora são
- * namespaceados.
+ * O banco conecta ANTES do listen: sem ele nenhuma rota funciona, e subir o
+ * servidor de qualquer jeito só trocaria um erro claro aqui por 500 em toda
+ * requisição. Índices na subida porque `createIndex` é idempotente — inclusive
+ * os únicos, que são o que garante um e-mail por conta.
  */
-async function bootMigrations() {
-  const ids = await listAccountIds();
-  let released = 0;
+async function start() {
+  await connect();
+  await ensureIndexes();
 
-  for (const id of ids) {
-    released += await releaseModelPauses(id);
-  }
+  const total = await countAccounts();
 
-  if (released) {
-    console.log(`↩️  ${released} conversa(s) liberada(s) de handoff antigo`);
-  }
+  httpServer.listen(PORT, () => {
+    console.log(`🟢 Servidor rodando na porta ${PORT}`);
+    console.log(`   Provider: ${PROVIDER}`);
+    console.log(`   Webhook:  POST /webhook`);
+    console.log(`   Auth:     POST /api/auth/signup  |  POST /api/auth/login`);
+    console.log(`   API:      /api/messages  /api/leads  /api/metrics  (exigem WhatsApp conectado)`);
+    console.log(`   IA:       ${aiRuntime().configured ? `${aiRuntime().model} (effort ${aiRuntime().effort})` : 'desligada — falta ANTHROPIC_API_KEY'}`);
 
-  if (ids.length === 0 && await hasLegacyData()) {
-    console.log('📦 Há conversas da versão sem contas — a primeira conta criada vai adotá-las.');
-  }
+    if (isEvolution) {
+      console.log(`   Instância: GET /api/instance  |  GET /api/instance/qr`);
+    } else {
+      console.log(`   Provider meta: um número para toda a instalação — multi-tenant só no provider evolution`);
+    }
+
+    console.log(`   Contas:   ${total}`);
+  });
 }
 
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, async () => {
-  console.log(`🟢 Servidor rodando na porta ${PORT}`);
-  console.log(`   Provider: ${PROVIDER}`);
-  console.log(`   Webhook:  POST /webhook`);
-  console.log(`   Auth:     POST /api/auth/signup  |  POST /api/auth/login`);
-  console.log(`   API:      /api/messages  /api/leads  /api/metrics  (exigem WhatsApp conectado)`);
-  console.log(`   IA:       ${aiRuntime().configured ? `${aiRuntime().model} (effort ${aiRuntime().effort})` : 'desligada — falta ANTHROPIC_API_KEY'}`);
-
-  if (isEvolution) {
-    console.log(`   Instância: GET /api/instance  |  GET /api/instance/qr`);
-  } else {
-    console.log(`   Provider meta: um número para toda a instalação — multi-tenant só no provider evolution`);
-  }
-
-  try {
-    console.log(`   Contas:   ${await countAccounts()}`);
-    await bootMigrations();
-  } catch (err) {
-    console.warn('⚠️  Migrações de boot falharam:', err.message);
-  }
+start().catch((err) => {
+  console.error('❌ Falha ao subir o servidor:', err.message);
+  process.exit(1);
 });

@@ -1,6 +1,6 @@
 # WhatsApp Hub — Atendimento por WhatsApp com IA
 
-Produto multi-conta: cada cliente se cadastra, conecta o próprio número de WhatsApp e ganha um painel em tempo real onde uma IA atende, coleta dados e escala para humanos. **React + Socket.IO** no frontend, **Express + Redis** no backend, com dois providers possíveis:
+Produto multi-conta: cada cliente se cadastra, conecta o próprio número de WhatsApp e ganha um painel em tempo real onde uma IA atende, coleta dados e escala para humanos. **React + Socket.IO** no frontend, **Express + MongoDB** no backend, com dois providers possíveis:
 
 | `WHATSAPP_PROVIDER` | Provider | Número usado |
 |---|---|---|
@@ -14,8 +14,8 @@ Trocar de provider é só mudar `WHATSAPP_PROVIDER` no `.env` e reiniciar — na
 ## Pré-requisitos
 
 - Node.js 20+
-- Redis rodando localmente (`redis-server`) ou via Docker
-- **Provider `evolution`:** Docker (para subir a Evolution API) + um número de WhatsApp no celular
+- Docker — o banco do hub (MongoDB) sobe pelo `docker-compose.evolution.yml`, serviço `hub-mongo`
+- **Provider `evolution`:** um número de WhatsApp no celular (a Evolution API sobe no mesmo compose)
 - **Provider `meta`:** conta de desenvolvedor Meta com acesso à WhatsApp Cloud API
 
 ---
@@ -23,21 +23,28 @@ Trocar de provider é só mudar `WHATSAPP_PROVIDER` no `.env` e reiniciar — na
 ## Configuração do backend
 
 ```bash
+# banco + Evolution API
+docker compose -f docker-compose.evolution.yml up -d
+
 cd backend
 cp .env.example .env
 npm install
 npm run dev
 ```
 
+O banco é o `MONGO_URL` do `.env` (padrão: o `hub-mongo` do compose). O servidor conecta e cria os índices **antes**
+de abrir a porta — sem banco ele não sobe, em vez de responder 500 em toda rota.
+
 Variáveis do `.env`:
 
 | Variável | Provider | Onde encontrar |
 |---|---|---|
 | `WHATSAPP_PROVIDER` | ambos | `evolution` ou `meta` |
-| `EVOLUTION_API_URL` | evolution | URL da Evolution API (`http://localhost:8080`) |
+| `EVOLUTION_API_URL` | evolution | URL da Evolution API (`http://localhost:8080`). É o container onde as contas **novas** nascem — as existentes usam o `evolutionUrl` gravado nelas |
 | `EVOLUTION_API_KEY` | evolution | igual a `AUTHENTICATION_API_KEY` do container |
-| `EVOLUTION_INSTANCE` | evolution | **só migração** — a instância nasce por conta (`hub-<id>`). Ver "Contas e multi-tenant" |
 | `EVOLUTION_WEBHOOK_URL` | evolution | URL do backend vista pelo container |
+| `MONGO_URL` | ambos | banco do hub (`hub-mongo` do compose) |
+| `MONGO_DB` | ambos | nome do banco (padrão `whatsapp_hub`) |
 | `WHATSAPP_VERIFY_TOKEN` | meta | Você define (qualquer string secreta) |
 | `WHATSAPP_ACCESS_TOKEN` | meta | Meta for Developers → seu app → WhatsApp → API Setup |
 | `WHATSAPP_PHONE_NUMBER_ID` | meta | Mesmo painel, "Phone Number ID" |
@@ -48,7 +55,19 @@ Variáveis do `.env`:
 
 ## Contas e multi-tenant
 
-Não existe mais token de operador no `.env`. Cada cliente cria uma conta, e **uma conta é um tenant**: conversas, leads e configuração da IA vivem sob `t:<contaId>:` no Redis, e nenhuma função de dados aceita ser chamada sem conta.
+Não existe mais token de operador no `.env`. Cada cliente cria uma conta, e **uma conta é um tenant**.
+
+É uma **base única compartilhada**: não existe banco nem coleção por cliente. Todo documento de atendimento carrega `accountId`, toda query filtra por ele, e nenhuma função de dados (`services/store.js`) aceita ser chamada sem conta — `undefined` é erro na hora, não query aberta.
+
+| Coleção | Um documento por | Índice único |
+|---|---|---|
+| `accounts` | conta (`_id` = id da conta) | `email`, `instanceName` |
+| `conversations` | conversa | `accountId` + `phoneNumber` |
+| `messages` | mensagem | — (`accountId` + `phoneNumber` + `timestamp`) |
+| `leads` | conversa | `accountId` + `phoneNumber` |
+| `aiConfigs` | conta (`_id` = accountId) | — |
+
+O índice único em `accounts.email` não é otimização: é o que impede duas contas com o mesmo e-mail em cadastros simultâneos (o `insertOne` que colide devolve `E11000`, e a rota traduz para 409).
 
 | Método | Rota | Função |
 |---|---|---|
@@ -62,7 +81,13 @@ Não existe mais token de operador no `.env`. Cada cliente cria uma conta, e **u
 
 ### Um número por conta
 
-No provider `evolution`, cada conta recebe uma instância própria (`hub-<id>`) e pareia o próprio número na mesma Evolution API. O webhook descobre de quem é a mensagem pelo campo `instance` do payload (`accounts:byInstance`) — **uma única `EVOLUTION_WEBHOOK_URL` serve todas as contas**. Instância sem conta correspondente é ignorada com aviso no log.
+No provider `evolution`, cada conta recebe uma instância própria (`hub-<id>`) e pareia o próprio número. O webhook descobre de quem é a mensagem pelo campo `instance` do payload (`findByInstance`) — **uma única `EVOLUTION_WEBHOOK_URL` serve todas as contas**. Instância sem conta correspondente é ignorada com aviso no log.
+
+Instância **não é container**: um container Evolution hospeda muitas sessões do Baileys. O container vazio custa **142 MB** (medido), e cada sessão conectada some ~80–200 MB por cima — o número real sai de `docker stats --no-stream evolution-api` antes e depois de parear. E o Evolution é um processo Node só: os sockets disputam um event loop, com a cripto do Signal serializada, então a degradação chega antes do teto de memória. Limite prático por container: **30–50 clientes**.
+
+Por isso a conta guarda `evolutionUrl` além de `instanceName`. Hoje todas apontam para o mesmo container; quando entrar um segundo, as contas novas nascem apontando para ele e as antigas não se mexem — a sessão de um cliente vive no volume de um container só. Distribuir é `updateOne` no documento, não refactor: as funções de `services/evolution.js` recebem `{ instanceName, evolutionUrl }` (via `instanceTarget(account)`), e só caem no `.env` quando recebem uma string.
+
+O Postgres da Evolution é dela, não do hub, e continua único para todos os containers. O compose desliga `DATABASE_SAVE_DATA_NEW_MESSAGE`/`MESSAGE_UPDATE`/`CONTACTS`/`CHATS`: o histórico é do hub (`messages`/`conversations`), e deixar ligado gravaria o mesmo dado em dois bancos.
 
 > **Provider `meta` é single-tenant.** A Cloud API tem um `WHATSAPP_PHONE_NUMBER_ID` por instalação e o payload não identifica instância, então o webhook cai na única conta existente. Com mais de uma conta cadastrada a mensagem é recusada em vez de ir para a conta errada.
 
@@ -75,12 +100,6 @@ Depois de entrar, o primeiro passo é conectar o WhatsApp. Enquanto a conta não
 - o Socket.IO nem abre a conexão.
 
 `GET /api/instance` é a exceção — é a rota que conclui o onboarding: estado `open` grava `onboardedAt` na conta e libera o resto. No provider `meta` o gate é desligado (não há o que parear).
-
-### Migração da versão sem contas
-
-A versão anterior guardava tudo na raiz do Redis (`conversations`, `leads`, `ai:config`, `conv:<telefone>`). Esse histórico não é descartado: **a primeira conta criada o adota**, e junto herda o nome de instância de `EVOLUTION_INSTANCE` — assim o número que já estava pareado continua funcionando sem ler QR de novo. Instalação nova não sequestra essa variável: sem dado legado, cada conta ganha `hub-<id>`.
-
-O boot avisa quando encontra dado legado esperando dono.
 
 ---
 
@@ -102,7 +121,7 @@ Sem `ANTHROPIC_API_KEY` o servidor sobe normalmente — só não responde sozinh
 
 ### O que a IA decide
 
-O modelo responde em JSON estruturado com `reply`, `handoff` e `handoff_reason`. **Handoff avisa, não para.** Quando o modelo marca handoff (cliente pediu atendente, assunto fora dos tópicos permitidos, guardrail que impediria a resposta), a conversa recebe `needsHuman: true` no Redis e o chip vira **"Escalada"** — mas a IA continua conduzindo o atendimento.
+O modelo responde em JSON estruturado com `reply`, `handoff` e `handoff_reason`. **Handoff avisa, não para.** Quando o modelo marca handoff (cliente pediu atendente, assunto fora dos tópicos permitidos, guardrail que impediria a resposta), a conversa recebe `needsHuman: true` e o chip vira **"Escalada"** — mas a IA continua conduzindo o atendimento.
 
 Quem tira a IA da conversa é o operador, gravando `aiPaused: true`:
 
@@ -202,7 +221,7 @@ Duas séries no gráfico — conversas e leads — em barras agrupadas no **mesm
 
 ## Usando seu próprio número (Evolution API)
 
-**1. Suba a Evolution API** (Postgres + Redis próprios inclusos):
+**1. Suba a Evolution API** (Postgres e Redis próprios dela inclusos, mais o `hub-mongo`):
 
 ```bash
 docker compose -f docker-compose.evolution.yml up -d
@@ -286,7 +305,7 @@ Acesse `http://localhost:5173`. Sem sessão você cai na página do produto — 
 
 ```
 whatsapp-hub/
-├── docker-compose.evolution.yml  # Evolution API + Postgres + Redis
+├── docker-compose.evolution.yml  # Evolution API + Postgres + Redis + MongoDB do hub
 ├── backend/
 │   └── src/
 │       ├── index.js              # Entry point (Express + Socket.IO)
@@ -299,8 +318,9 @@ whatsapp-hub/
 │       │   ├── metrics.js        # /api/metrics — painel
 │       │   └── instance.js       # /api/instance — QR, estado, onboarding
 │       ├── services/
-│       │   ├── redis.js          # Persistência por conta (t:<id>:…) + migração
-│       │   ├── accounts.js       # Contas, senha (scrypt), índices
+│       │   ├── mongo.js          # Conexão, coleções e índices da base única
+│       │   ├── store.js          # Conversas/mensagens/leads — sempre filtrados por accountId
+│       │   ├── accounts.js       # Contas, senha (scrypt), alvo da instância
 │       │   ├── tokens.js         # JWT HS256 (assina/valida a sessão)
 │       │   ├── socket.js         # Broadcast por sala de conta
 │       │   ├── provider.js       # Escolhe o provider (evolution | meta)
@@ -346,7 +366,7 @@ Usuário WhatsApp
     → extractInboundMessage()  # implementação do provider ativo
       → resolveAccount()       # instância do payload → conta dona
       → formatMessage()  →  "5511999990000: Olá!"
-        → saveMessage() em t:<conta>:conv:<telefone>
+        → saveMessage() → messages + conversations, marcados com accountId
           → broadcastMessage() via Socket.IO
             → ChatWindow exibe a bolha
               → maybeAutoReply()             # se a IA estiver ligada
@@ -374,9 +394,9 @@ O campo `formatted` está disponível em cada objeto de mensagem para logging/in
 ## O que ainda não existe
 
 - **Vários usuários por conta.** Uma conta = um login. "Equipe e filas" é tela de demonstração; convidar pessoa exige um modelo de usuários dentro da conta.
-- **Revogação de sessão.** O JWT é sem estado: trocar a senha não invalida tokens já emitidos. Precisa de uma lista de `jti` no Redis.
+- **Revogação de sessão.** O JWT é sem estado: trocar a senha não invalida tokens já emitidos. Precisa de uma coleção de `jti` revogados.
 - **Recuperação de senha.** Não há fluxo de "esqueci minha senha" (depende de envio de e-mail).
 - **Rate limit no login.** Nada limita tentativas de senha por IP ou por conta.
 - **Mídia.** Só texto: implemente `message.type === 'image'` no webhook e a API de mídia do provider.
 - **Filas.** Para escala, mova o processamento do webhook para BullMQ — hoje ele roda no próprio request.
-- **Deploy.** Docker Compose com Node + Redis + Nginx.
+- **Deploy.** Docker Compose com Node + Nginx. Passando de ~30–50 contas, um segundo container Evolution e o `evolutionUrl` das contas novas apontando para ele.
