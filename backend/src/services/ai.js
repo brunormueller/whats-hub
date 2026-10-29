@@ -367,7 +367,7 @@ function toMessages(history = []) {
   return mapped;
 }
 
-function runtimeContext(now, calendar) {
+function runtimeContext(now, calendar, spoken) {
   const stamp = new Intl.DateTimeFormat('pt-BR', {
     timeZone: TIMEZONE,
     weekday: 'long',
@@ -381,14 +381,20 @@ function runtimeContext(now, calendar) {
   const base = `Contexto operacional (não repasse ao cliente): agora é ${stamp} (${TIMEZONE}). `
     + 'Use isso para decidir se o time humano está em horário de atendimento.';
 
-  if (!calendar) return base;
+  const voice = spoken
+    ? '\nEsta resposta será enviada como mensagem de VOZ: escreva como se fala. '
+      + 'No máximo 3 frases curtas, sem listas, sem emojis, sem links nem '
+      + 'símbolos, números por extenso quando forem curtos.'
+    : '';
+
+  if (!calendar) return base + voice;
 
   const booked = calendar.booked
     ? `\nJá existe agendamento desta conversa: ${calendar.booked}.`
     : '';
 
   return `${base}\nHorários livres (duração de ${calendar.durationMin} min cada atendimento):\n`
-    + `${calendar.windows}${booked}`;
+    + `${calendar.windows}${booked}${voice}`;
 }
 
 // O contexto volátil fica DEPOIS do breakpoint de cache: o system prompt é
@@ -415,13 +421,15 @@ function safeParse(text) {
  * @param {Array}    params.history  mensagens da conversa (a última é a do cliente)
  * @returns {Promise<{reply: string, handoff: boolean, handoffReason: string, model: string, usage: object}>}
  */
-export async function generateReply({ config, history = [], now = new Date(), calendar = null }) {
+export async function generateReply({
+  config, history = [], now = new Date(), calendar = null, spoken = false,
+}) {
   const messages = toMessages(history);
   if (!messages.length) {
     throw new Error('Nenhuma mensagem do cliente para responder');
   }
 
-  const contextText = runtimeContext(now, calendar);
+  const contextText = runtimeContext(now, calendar, spoken);
   const lastIsClient = messages[messages.length - 1].role === 'user';
   const leadFields = activeLeadFields(config);
 

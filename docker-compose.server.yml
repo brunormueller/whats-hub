@@ -14,6 +14,7 @@ services:
     depends_on:
       - hub-mongo
       - evolution-api
+      - hub-voice
 
   evolution-api:
     image: evoapicloud/evolution-api:latest
@@ -112,6 +113,19 @@ services:
     volumes:
       - hub_mongodata:/data/db
 
+  # STT (faster-whisper) + TTS (Kokoro) em CPU. Só rede interna: sem porta
+  # publicada e sem autenticação.
+  hub-voice:
+    build:
+      context: ./voice
+    container_name: hub-voice
+    restart: unless-stopped
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+    volumes:
+      - voice_cache:/root/.cache
+    mem_limit: 3g
+
   # Quick tunnel: URL https://*.trycloudflare.com nova a cada recriação do
   # container. Veja a atual com: docker logs hub-tunnel 2>&1 | grep trycloudflare
   tunnel:
@@ -123,6 +137,7 @@ services:
       - backend
 
 volumes:
+  voice_cache:
   evolution_instances:
   evolution_pgdata:
   evolution_redis:

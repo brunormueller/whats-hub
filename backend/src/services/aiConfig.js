@@ -44,6 +44,10 @@ export const AI_CONFIG_DEFAULTS = {
   notifyOnLead: true,
   notifyPhone: '',
 
+  // Resposta em áudio (exige o serviço de voz). mode: 'mirror' responde áudio
+  // com áudio e texto com texto · 'always' · 'off'. `voice` é a voz do Kokoro.
+  voice: { mode: 'mirror', voice: 'pf_dora' },
+
   // Agendamento no Google Calendar (a conexão da conta fica em googleConnections)
   calendar: { ...CALENDAR_DEFAULTS },
 

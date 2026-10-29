@@ -2,13 +2,22 @@ import { Router } from 'express';
 import { io } from '../index.js';
 import {
   extractInboundMessage,
+  fetchMediaBase64,
   instanceFromWebhook,
   isEvolution,
+  sendWhatsAppMessage,
 } from '../services/provider.js';
+import { transcribe, voiceConfigured } from '../services/voice.js';
 import { formatMessage, saveMessage } from '../services/store.js';
 import { broadcastMessage } from '../services/socket.js';
 import { maybeAutoReply } from '../services/autoReply.js';
-import { countAccounts, findByInstance, listAccountIds, getAccount } from '../services/accounts.js';
+import {
+  countAccounts,
+  findByInstance,
+  getAccount,
+  instanceTarget,
+  listAccountIds,
+} from '../services/accounts.js';
 
 const router = Router();
 
@@ -87,6 +96,31 @@ function alreadySeen(waMessageId) {
   return false;
 }
 
+// Áudio acima disso não vale a fila de transcrição numa CPU pequena.
+const MAX_AUDIO_SECONDS = Number(process.env.VOICE_MAX_AUDIO_SECONDS) || 180;
+
+/**
+ * Áudio do cliente → texto. Devolve '' quando não deu (longo demais, sem fala,
+ * serviço fora do ar): quem chama pede ao cliente que escreva.
+ */
+async function transcribeInbound(account, inbound) {
+  const { audio } = inbound;
+  if (audio.seconds > MAX_AUDIO_SECONDS) return '';
+
+  try {
+    // O payload traz o base64 quando o webhook da instância liga `base64`; o
+    // download é só para instâncias registradas antes disso.
+    const base64 = audio.base64
+      || (fetchMediaBase64 ? await fetchMediaBase64(instanceTarget(account), inbound.waMessageId) : null);
+    if (!base64) throw new Error('áudio não veio no webhook e a Evolution não o tem');
+
+    return await transcribe(Buffer.from(base64, 'base64'));
+  } catch (err) {
+    console.warn(`⚠️  Transcrição falhou (${inbound.from}): ${err.message}`);
+    return '';
+  }
+}
+
 /**
  * Recebe mensagens enviadas pelos usuários do WhatsApp.
  */
@@ -102,10 +136,26 @@ async function handleInbound(req, res) {
   const account = await resolveAccount(req.body);
   if (!account) return;
 
+  if (inbound.audio) {
+    // Sem serviço de voz o áudio é ignorado, como sempre foi.
+    if (!voiceConfigured()) return;
+
+    inbound.text = await transcribeInbound(account, inbound);
+
+    if (!inbound.text) {
+      const ask = 'Não consegui ouvir esse áudio direito. Pode me mandar por escrito?';
+      await sendWhatsAppMessage(instanceTarget(account), inbound.from, ask).catch((err) => {
+        console.warn(`⚠️  Aviso de áudio ilegível não saiu (${inbound.from}): ${err.message}`);
+      });
+      return;
+    }
+  }
+
   // `waMessageId` fica guardado na mensagem porque a Cloud API só mostra o
   // indicador de "digitando…" citando o id do inbound.
   const message = formatMessage(inbound.from, inbound.text, 'inbound', {
     waMessageId: inbound.waMessageId,
+    audio: Boolean(inbound.audio),
   });
 
   // Persiste no Redis, sob a conta dona do número

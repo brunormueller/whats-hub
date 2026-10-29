@@ -27,6 +27,7 @@ function requireAccount(accountId) {
  *
  * `options.label`       sobrescreve o autor exibido (a IA assina com o nome do agente)
  * `options.author`      marca a origem: 'human' (padrão) | 'ai'
+ * `options.audio`        true quando a mensagem foi falada (o `text` é a transcrição ou o roteiro)
  * `options.waMessageId` id da mensagem no WhatsApp — a Cloud API exige ele para
  *                       mostrar o indicador de "digitando…"
  */
@@ -40,6 +41,7 @@ export function formatMessage(from, text, direction = 'inbound', options = {}) {
     direction,   // 'inbound' | 'outbound'
     author: options.author || (direction === 'inbound' ? 'contact' : 'human'),
     ...(options.waMessageId ? { waMessageId: options.waMessageId } : {}),
+    ...(options.audio ? { audio: true } : {}),
     timestamp: new Date().toISOString(),
     formatted: `${label}: ${text}`,
   };

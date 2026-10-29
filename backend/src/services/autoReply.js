@@ -12,7 +12,12 @@
  * conduzindo o atendimento até alguém pausar de fato. Quem quiser o
  * comportamento antigo — escalar e calar — liga `handoffPauses` na config.
  */
-import { sendWhatsAppMessage, sendPresence } from './provider.js';
+import {
+  sendWhatsAppMessage,
+  sendWhatsAppAudio,
+  sendPresence,
+} from './provider.js';
+import { synthesize, voiceConfigured } from './voice.js';
 import { aiConfigured, generateReply } from './ai.js';
 import { getAiConfig } from './aiConfig.js';
 import { handleLead } from './leads.js';
@@ -62,6 +67,41 @@ function lastInboundId(history = []) {
     if (history[i]?.direction === 'inbound') return history[i].waMessageId || null;
   }
   return null;
+}
+
+/**
+ * Esta resposta sai em áudio? 'mirror' devolve áudio a quem mandou áudio;
+ * sem serviço de voz ou sem suporte do provider, é sempre texto.
+ */
+function shouldSpeak(config, history) {
+  if (!voiceConfigured() || !sendWhatsAppAudio) return false;
+
+  const mode = config.voice?.mode || 'mirror';
+  if (mode === 'off') return false;
+  if (mode === 'always') return true;
+
+  const last = [...history].reverse().find((m) => m?.direction === 'inbound');
+  return Boolean(last?.audio);
+}
+
+/**
+ * Gera e envia a resposta como mensagem de voz. Devolve false em qualquer
+ * falha (serviço fora, timeout, envio recusado) para o chamador mandar o
+ * mesmo texto — o cliente nunca fica sem resposta por causa do áudio.
+ */
+async function sendSpoken({ account, phoneNumber, text, config }) {
+  try {
+    // "gravando áudio…" enquanto sintetiza; cosmético, não segura o envio.
+    sendPresence(instanceTarget(account), phoneNumber, { presence: 'recording', delayMs: 6000 })
+      .catch(() => {});
+
+    const audio = await synthesize(text, { voice: config.voice?.voice });
+    await sendWhatsAppAudio(instanceTarget(account), phoneNumber, audio);
+    return true;
+  } catch (err) {
+    console.warn(`⚠️  Áudio falhou para ${phoneNumber}, indo em texto: ${err.message}`);
+    return false;
+  }
 }
 
 /**
@@ -130,7 +170,8 @@ async function replyOnce(io, account, phoneNumber) {
   try {
     const history = await getConversation(account.id, phoneNumber);
     const calendar = await calendarContext(account.id, config, meta);
-    const result = await generateReply({ config, history, calendar });
+    const spoken = shouldSpeak(config, history);
+    const result = await generateReply({ config, history, calendar, spoken });
 
     // O evento é criado ANTES de enviar: se o horário sumiu no meio da
     // conversa, o cliente recebe a correção em vez de uma confirmação falsa.
@@ -151,14 +192,20 @@ async function replyOnce(io, account, phoneNumber) {
     }
 
     if (text) {
-      // Ritmo humano: o indicador aparece e a mensagem só sai depois da pausa.
-      await typeBeforeSend({ account, phoneNumber, text, config, history });
+      const sentAsAudio = spoken
+        && await sendSpoken({ account, phoneNumber, text, config });
 
-      await sendWhatsAppMessage(instanceTarget(account), phoneNumber, text);
+      if (!sentAsAudio) {
+        // Ritmo humano: o indicador aparece e a mensagem só sai depois da pausa.
+        await typeBeforeSend({ account, phoneNumber, text, config, history });
+
+        await sendWhatsAppMessage(instanceTarget(account), phoneNumber, text);
+      }
 
       const message = formatMessage(phoneNumber, text, 'outbound', {
         label: config.agentName,
         author: 'ai',
+        audio: sentAsAudio,
       });
 
       await saveMessage(account.id, phoneNumber, message);

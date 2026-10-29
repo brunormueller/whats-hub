@@ -30,4 +30,8 @@ export const instanceFromWebhook = impl.instanceFromWebhook;
 export const sendPresence = impl.sendPresence
   || (async () => ({ skipped: true, reason: `provider ${PROVIDER} não envia presença` }));
 
+// Voz só existe no provider Evolution; no `meta` a resposta sai em texto.
+export const sendWhatsAppAudio = impl.sendWhatsAppAudio || null;
+export const fetchMediaBase64 = impl.fetchMediaBase64 || null;
+
 export default impl;

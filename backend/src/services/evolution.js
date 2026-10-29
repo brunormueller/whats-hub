@@ -95,6 +95,40 @@ export async function sendWhatsAppMessage(instance, to, text) {
 }
 
 /**
+ * Baixa a mídia de uma mensagem recebida (fallback quando o webhook não trouxe
+ * o base64). Só funciona se a Evolution ainda tiver a mensagem.
+ */
+export async function fetchMediaBase64(instance, waMessageId) {
+  const { name, baseUrl } = target(instance);
+
+  const res = await request(`/chat/getBase64FromMediaMessage/${name}`, {
+    method: 'POST',
+    baseUrl,
+    body: { message: { key: { id: waMessageId } }, convertToMp4: false },
+  });
+
+  return res?.base64 || null;
+}
+
+/**
+ * Envia uma mensagem de voz (nota de voz, com o ícone de microfone). `audio`
+ * é um Buffer OGG/Opus.
+ */
+export async function sendWhatsAppAudio(instance, to, audio) {
+  const { name, baseUrl } = target(instance);
+
+  return request(`/message/sendWhatsAppAudio/${name}`, {
+    method: 'POST',
+    baseUrl,
+    body: {
+      number: normalizeNumber(to),
+      audio: audio.toString('base64'),
+      encoding: true,
+    },
+  });
+}
+
+/**
  * Marca a conversa como "digitando…" no WhatsApp do cliente.
  *
  * A Evolution mantém a presença por `delay` ms e depois volta para 'paused',
@@ -145,6 +179,19 @@ export function instanceFromWebhook(body) {
   return body?.instance || body?.data?.instance || null;
 }
 
+/** Mensagem de áudio (nota de voz ou áudio comum), com os invólucros do Baileys. */
+function extractAudio(message, depth = 0) {
+  if (!message || depth > 3) return null;
+  if (message.audioMessage) return message.audioMessage;
+
+  return extractAudio(
+    message.ephemeralMessage?.message
+      || message.viewOnceMessage?.message
+      || message.viewOnceMessageV2?.message,
+    depth + 1,
+  );
+}
+
 /**
  * Extrai os dados relevantes de um webhook da Evolution API.
  * Retorna null se não for uma mensagem de texto recebida de um contato
@@ -165,13 +212,23 @@ export function extractInboundMessage(body) {
     if (!remoteJid.endsWith('@s.whatsapp.net')) return null;
 
     const text = extractText(data.message);
-    if (!text) return null;
+    const audio = text ? null : extractAudio(data.message);
+    if (!text && !audio) return null;
 
     const timestampSeconds = Number(data.messageTimestamp) || Math.floor(Date.now() / 1000);
 
     return {
       from: normalizeNumber(remoteJid),
-      text,
+      text: text || '',
+      // Áudio chega sem texto: o webhook transcreve antes de seguir. O base64
+      // vem no payload quando o webhook da instância liga `base64`.
+      ...(audio ? {
+        audio: {
+          base64: data.message?.base64 || data.base64 || null,
+          mimetype: audio.mimetype || 'audio/ogg',
+          seconds: Number(audio.seconds) || 0,
+        },
+      } : {}),
       waMessageId: key.id,
       pushName: data.pushName || null,
       timestamp: new Date(timestampSeconds * 1000).toISOString(),
@@ -193,7 +250,9 @@ function webhookConfig() {
     enabled: true,
     url,
     byEvents: false,
-    base64: false,
+    // Precisa de base64: com DATABASE_SAVE_DATA_NEW_MESSAGE desligado a
+    // Evolution não guarda a mensagem, então o áudio só existe neste payload.
+    base64: true,
     events: ['MESSAGES_UPSERT'],
   };
 }
