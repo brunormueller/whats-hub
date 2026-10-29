@@ -50,6 +50,9 @@ Variáveis do `.env`:
 | `WHATSAPP_PHONE_NUMBER_ID` | meta | Mesmo painel, "Phone Number ID" |
 | `JWT_SECRET` | ambos | Você gera: `openssl rand -hex 32`. Assina a sessão de login |
 | `ANTHROPIC_API_KEY` | ambos | [console.anthropic.com](https://console.anthropic.com) — sem ela a IA fica desligada |
+| `FRONTEND_URL` | ambos | URL pública do painel — CORS e destino do link de recuperação de senha |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | ambos | Seu provedor de e-mail (Resend, Brevo, SES…). Sem `SMTP_HOST`, fora de produção o e-mail sai no console |
+| `MAIL_FROM` | ambos | Remetente, ex.: `Sheep <nao-responda@seudominio.com.br>` — domínio verificado no provedor |
 
 ---
 
@@ -66,6 +69,7 @@ Não existe mais token de operador no `.env`. Cada cliente cria uma conta, e **u
 | `messages` | mensagem | — (`accountId` + `phoneNumber` + `timestamp`) |
 | `leads` | conversa | `accountId` + `phoneNumber` |
 | `aiConfigs` | conta (`_id` = accountId) | — |
+| `passwordResets` | link de recuperação (`_id` = SHA-256 do token) | — (TTL em `expiresAt`) |
 
 O índice único em `accounts.email` não é otimização: é o que impede duas contas com o mesmo e-mail em cadastros simultâneos (o `insertOne` que colide devolve `E11000`, e a rota traduz para 409).
 
@@ -74,10 +78,14 @@ O índice único em `accounts.email` não é otimização: é o que impede duas 
 | `POST` | `/api/auth/signup` | cria a conta e já devolve a sessão |
 | `POST` | `/api/auth/login` | e-mail + senha |
 | `GET` | `/api/auth/me` | conta da sessão + estado do onboarding |
+| `POST` | `/api/auth/forgot-password` | envia o link de recuperação (resposta igual exista a conta ou não) |
+| `POST` | `/api/auth/reset-password/verify` | o link ainda vale? devolve o e-mail da conta |
+| `POST` | `/api/auth/reset-password` | nova senha pelo link — já devolve a sessão |
 
 - **Senha:** scrypt (N=32768, r=8, p=1) com salt por conta, via `crypto` do Node — sem dependência nova. O formato guardado carrega os parâmetros, então o custo pode subir depois sem invalidar as senhas existentes.
 - **Sessão:** JWT HS256 de 30 dias assinado com `JWT_SECRET`. Sem estado no servidor — não há logout server-side; o front descarta o token. Sem `JWT_SECRET` o servidor sobe, avisa e usa chave aleatória (todo mundo cai no restart).
 - **Socket.IO** usa o mesmo JWT e cada conexão entra na sala da própria conta: nenhum evento cruza tenants.
+- **Recuperação de senha:** link de uso único com token aleatório de 32 bytes, válido por 30 minutos. O banco guarda só o SHA-256 do token; um pedido por conta a cada minuto. Trocar a senha grava `passwordChangedAt`, e todo JWT emitido antes disso passa a ser recusado (HTTP e socket) — quem estava logado com a senha antiga cai. O e-mail usa o template de `backend/src/emails/` com a logo como anexo inline (CID).
 
 ### Um número por conta
 
@@ -309,9 +317,13 @@ whatsapp-hub/
 ├── backend/
 │   └── src/
 │       ├── index.js              # Entry point (Express + Socket.IO)
+│       ├── emails/
+│       │   ├── index.js          # Renderiza os templates (escape + versão texto)
+│       │   ├── recuperar-conta.html  # E-mail de recuperação de senha
+│       │   └── logo.png          # Logo inline (cid:logo@sheep)
 │       ├── routes/
 │       │   ├── webhook.js        # POST /webhook — resolve a conta pela instância
-│       │   ├── auth.js           # /api/auth — signup, login, me
+│       │   ├── auth.js           # /api/auth — signup, login, me, recuperação de senha
 │       │   ├── messages.js       # GET/POST /api/messages
 │       │   ├── ai.js             # /api/ai — config + sandbox do agente
 │       │   ├── leads.js          # /api/leads — leads coletados pela IA
@@ -322,6 +334,8 @@ whatsapp-hub/
 │       │   ├── store.js          # Conversas/mensagens/leads — sempre filtrados por accountId
 │       │   ├── accounts.js       # Contas, senha (scrypt), alvo da instância
 │       │   ├── tokens.js         # JWT HS256 (assina/valida a sessão)
+│       │   ├── passwordReset.js  # Links de recuperação (uso único, 30 min)
+│       │   ├── mailer.js         # SMTP (nodemailer); sem SMTP, console
 │       │   ├── socket.js         # Broadcast por sala de conta
 │       │   ├── provider.js       # Escolhe o provider (evolution | meta)
 │       │   ├── evolution.js      # Evolution API v2 (envio + presença + instância)
@@ -340,6 +354,8 @@ whatsapp-hub/
         │   ├── Landing.jsx       # Página pública do produto
         │   ├── Signup.jsx        # Cadastro
         │   ├── Login.jsx         # E-mail + senha
+        │   ├── ForgotPassword.jsx # Pedido do link de recuperação
+        │   ├── ResetPassword.jsx # /redefinir-senha — nova senha pelo link
         │   ├── Onboarding.jsx    # Conectar WhatsApp (bloqueante)
         │   ├── Dashboard.jsx     # Layout principal
         │   ├── Metrics.jsx       # Painel de métricas

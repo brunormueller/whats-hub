@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<!--
+  E-mail de recuperação de senha, renderizado por emails/index.js: cada
+  placeholder entre chaves duplas é trocado pelo valor já escapado. A logo vai
+  como anexo inline (cid:logo@sheep) porque o Gmail bloqueia imagem em data: URI.
+-->
+<html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light only">
+  <title>Recupere o acesso à sua conta Sheep</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:AllowPNG/>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <style>
+    table, td, p, a, h1, span { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+  <!--[if !mso]><!-->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+  <!--<![endif]-->
+  <style>
+    :root { color-scheme: light only; supported-color-schemes: light only; }
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #EEF5F0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; display: block; }
+    a { color: #12693F; }
+    a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }
+    u + #body a { color: inherit; text-decoration: none; }
+    .btn a:hover { background-color: #1CA851 !important; border-color: #1CA851 !important; }
+
+    @media only screen and (max-width: 620px) {
+      .wrap { width: 100% !important; }
+      .px { padding-left: 24px !important; padding-right: 24px !important; }
+      .outer { padding-left: 12px !important; padding-right: 12px !important; }
+      .h1 { font-size: 25px !important; line-height: 32px !important; }
+      .btn-t { width: 100% !important; }
+      .btn a { display: block !important; text-align: center !important; }
+      .logo { width: 116px !important; height: auto !important; }
+    }
+  </style>
+</head>
+
+<body id="body" style="margin:0; padding:0; background-color:#EEF5F0;">
+
+  <!-- Preheader (texto que aparece na prévia da caixa de entrada) -->
+  <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">
+    Use o botão dentro do email para criar uma nova senha. O link expira em {{minutes}} minutos.
+    &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF5F0;">
+    <tr>
+      <td class="outer" align="center" style="padding:40px 16px 32px 16px;">
+
+        <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
+        <table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
+
+          <!-- ============ CARD ============ -->
+          <tr>
+            <td>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate; background-color:#FFFFFF; border:1px solid #DDEBE2; border-radius:24px; overflow:hidden; box-shadow:0 12px 40px rgba(18,105,63,0.08);">
+
+                <!-- Faixa de destaque -->
+                <tr>
+                  <td height="6" style="height:6px; line-height:6px; font-size:6px; background-color:#21BC5B; background-image:linear-gradient(90deg,#21BC5B 0%,#3DDC97 55%,#12693F 100%); border-radius:23px 23px 0 0;">&nbsp;</td>
+                </tr>
+
+                <!-- Logo -->
+                <tr>
+                  <td class="px" align="center" style="padding:36px 48px 8px 48px;">
+                    <img class="logo" src="cid:logo@sheep" width="132" height="80" alt="Sheep" style="display:block; width:132px; height:80px; border:0; font-family:'Plus Jakarta Sans',Arial,sans-serif; font-size:22px; font-weight:800; color:#21BC5B;">
+                  </td>
+                </tr>
+
+                <!-- Ícone + título -->
+                <tr>
+                  <td class="px" align="center" style="padding:24px 48px 0 48px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" valign="middle" width="64" height="64" style="width:64px; height:64px; background-color:#E6F7EC; border-radius:20px; font-size:30px; line-height:64px; text-align:center;">
+                          &#128272;
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px" align="center" style="padding:20px 48px 0 48px;">
+                    <span style="display:inline-block; padding:6px 12px; background-color:#EFFAF3; border:1px solid #CDEFD9; border-radius:999px; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:11px; line-height:14px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#12693F;">
+                      Recuperação de conta
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px" align="center" style="padding:16px 48px 0 48px;">
+                    <h1 class="h1" style="margin:0; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:30px; line-height:38px; font-weight:800; letter-spacing:-0.02em; color:#0E1A13;">
+                      Vamos recuperar<br>seu acesso
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="px" align="center" style="padding:14px 48px 0 48px;">
+                    <p style="margin:0; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:16px; line-height:26px; color:#4A5A51;">
+                      Oi, {{name}}! Recebemos um pedido para redefinir a senha da conta Sheep vinculada a <strong style="color:#0E1A13; font-weight:700;">{{email}}</strong>. Toque no botão abaixo para criar uma nova senha.
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Botão -->
+                <tr>
+                  <td class="px" align="center" style="padding:32px 48px 0 48px;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{resetUrl}}" style="height:54px; v-text-anchor:middle; width:280px;" arcsize="24%" stroke="f" fillcolor="#21BC5B">
+                      <w:anchorlock/>
+                      <center style="color:#062414; font-family:Arial,sans-serif; font-size:16px; font-weight:bold;">Criar nova senha &rarr;</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-->
+                    <table role="presentation" class="btn-t" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td class="btn" align="center" style="border-radius:14px; background-color:#21BC5B;">
+                          <a href="{{resetUrl}}" target="_blank" style="display:inline-block; padding:17px 40px; border:1px solid #21BC5B; border-radius:14px; background-color:#21BC5B; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:16px; line-height:20px; font-weight:700; color:#062414; text-decoration:none; letter-spacing:-0.005em;">
+                            Criar nova senha &nbsp;&rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+
+                <!-- Aviso de expiração -->
+                <tr>
+                  <td class="px" style="padding:32px 48px 0 48px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate; background-color:#F3FAF5; border:1px solid #D6EEDE; border-radius:16px;">
+                      <tr>
+                        <td width="44" valign="top" style="padding:18px 0 18px 18px; font-size:20px; line-height:24px;">&#9203;</td>
+                        <td valign="top" style="padding:18px 18px 18px 12px; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif;">
+                          <p style="margin:0; font-size:14px; line-height:20px; font-weight:700; color:#0E1A13;">Link válido por {{minutes}} minutos</p>
+                          <p style="margin:4px 0 0 0; font-size:14px; line-height:21px; color:#4A5A51;">Por segurança, ele só pode ser usado uma vez. Depois disso, é só pedir um novo na tela de login.</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Link alternativo -->
+                <tr>
+                  <td class="px" style="padding:24px 48px 0 48px;">
+                    <p style="margin:0; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#6B7B72;">
+                      O botão não funcionou? Copie e cole este endereço no navegador:
+                    </p>
+                    <p style="margin:6px 0 0 0; font-family:'IBM Plex Mono',Consolas,Menlo,monospace; font-weight:500; font-size:12.5px; line-height:19px; word-break:break-all;">
+                      <a href="{{resetUrl}}" target="_blank" style="color:#12693F; text-decoration:underline;">{{resetUrl}}</a>
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Divisor -->
+                <tr>
+                  <td class="px" style="padding:32px 48px 0 48px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr><td height="1" style="height:1px; line-height:1px; font-size:1px; background-color:#E6EEE9;">&nbsp;</td></tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Não foi você? -->
+                <tr>
+                  <td class="px" style="padding:28px 48px 40px 48px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td width="48" valign="top">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td align="center" valign="middle" width="36" height="36" style="width:36px; height:36px; background-color:#F2F4F3; border-radius:12px; font-size:17px; line-height:36px; text-align:center;">&#128737;&#65039;</td>
+                            </tr>
+                          </table>
+                        </td>
+                        <td valign="top" style="font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif;">
+                          <p style="margin:0; font-size:15px; line-height:22px; font-weight:700; color:#0E1A13;">Não foi você?</p>
+                          <p style="margin:4px 0 0 0; font-size:14px; line-height:22px; color:#4A5A51;">
+                            Pode ignorar este email com tranquilidade. Sua senha atual continua valendo e ninguém consegue alterá-la sem este link. A equipe Sheep nunca pede sua senha por email ou WhatsApp.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+          <!-- ============ /CARD ============ -->
+
+          <!-- Ajuda -->
+          <tr>
+            <td align="center" style="padding:28px 24px 0 24px; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:14px; line-height:22px; color:#4A5A51;">
+              Precisa de ajuda? É só responder este email. &#128075;
+            </td>
+          </tr>
+
+          <!-- Rodapé -->
+          <tr>
+            <td align="center" style="padding:20px 24px 0 24px; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:12px; line-height:19px; color:#7C8C83;">
+              <strong style="color:#12693F; font-weight:700;">Sheep</strong> &middot; Sua recepcionista de WhatsApp que nunca dorme
+              <br>
+              Você recebeu este email porque alguém pediu a recuperação da conta {{email}}.
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:14px 24px 0 24px; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:12px; line-height:19px; color:#7C8C83;">
+              <a href="{{appUrl}}" target="_blank" style="color:#4A5A51; text-decoration:underline;">Abrir o Sheep</a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:14px 24px 0 24px; font-family:'Plus Jakarta Sans','Segoe UI',Helvetica,Arial,sans-serif; font-size:11px; line-height:17px; color:#9AA8A0;">
+              &copy; {{year}} Sheep &middot; Atendimento por WhatsApp com IA
+            </td>
+          </tr>
+
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

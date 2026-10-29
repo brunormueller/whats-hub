@@ -212,6 +212,36 @@ export function Field({ label, hint, after, ...input }) {
   );
 }
 
+// Mesmo mínimo do backend (services/accounts.js)
+export const MIN_PASSWORD = 8;
+
+/** Três barras de força, como no design. 0 a 3. */
+function strength(password) {
+  if (password.length < MIN_PASSWORD) return password ? 1 : 0;
+  const variety = [/[a-z]/, /[A-Z]/, /\d/, /[^\w]/].filter((r) => r.test(password)).length;
+  return variety >= 3 && password.length >= 12 ? 3 : 2;
+}
+
+export function StrengthBars({ password }) {
+  const score = strength(password);
+  return (
+    <span style={{ display: "flex", gap: 5, marginTop: 9 }}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          style={{
+            flex: 1,
+            height: 3,
+            borderRadius: 2,
+            background: i < score ? "#3DDC97" : "rgba(255,255,255,.1)",
+            transition: "background .2s",
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
 export function ErrorBox({ children }) {
   if (!children) return null;
   return (

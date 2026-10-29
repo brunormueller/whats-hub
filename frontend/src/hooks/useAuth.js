@@ -29,7 +29,10 @@ async function post(path, body) {
   });
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    // `code` deixa a tela reagir ao tipo de erro sem comparar a mensagem
+    throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { code: data.code });
+  }
   return data;
 }
 
@@ -104,6 +107,24 @@ export function useAuth() {
     enter(await post('/api/auth/signup', payload));
   }, [enter]);
 
+  /* Recuperação de senha. O pedido responde igual exista a conta ou não;
+     `minutes` é a validade do link, para a tela dizer. */
+  const requestPasswordReset = useCallback(
+    (email) => post('/api/auth/forgot-password', { email }),
+    [],
+  );
+
+  /** O link ainda vale? Devolve `{ email }` ou lança com a mensagem do backend. */
+  const verifyResetToken = useCallback(
+    (token) => post('/api/auth/reset-password/verify', { token }),
+    [],
+  );
+
+  /** Nova senha pelo link. O backend já devolve a sessão: entra direto. */
+  const resetPassword = useCallback(async (token, password) => {
+    enter(await post('/api/auth/reset-password', { token, password }));
+  }, [enter]);
+
   /** Chamado quando o número pareia: libera o resto do produto. */
   const markOnboarded = useCallback(() => {
     setSession((prev) => {
@@ -161,8 +182,14 @@ export function useAuth() {
     ready,
     login,
     signup,
+    requestPasswordReset,
+    verifyResetToken,
+    resetPassword,
     logout,
     markOnboarded,
     authFetch,
-  }), [session, ready, login, signup, logout, markOnboarded, authFetch]);
+  }), [
+    session, ready, login, signup, requestPasswordReset, verifyResetToken,
+    resetPassword, logout, markOnboarded, authFetch,
+  ]);
 }

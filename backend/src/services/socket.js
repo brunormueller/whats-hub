@@ -1,6 +1,6 @@
 import { listConversations, markAsRead } from './store.js';
 import { verifyToken } from './tokens.js';
-import { getAccount } from './accounts.js';
+import { getAccount, isSessionCurrent } from './accounts.js';
 import { isEvolution } from './provider.js';
 
 /**
@@ -23,6 +23,7 @@ export function setupSocket(io) {
 
     const account = await getAccount(claims.accountId);
     if (!account) return next(new Error('Conta não encontrada'));
+    if (!isSessionCurrent(account, claims)) return next(new Error('Sessão inválida'));
     // Mesma regra do requireOnboarded: só o provider evolution tem pareamento.
     if (isEvolution && !account.onboardedAt) {
       return next(new Error('Conecte seu WhatsApp primeiro'));
@@ -77,6 +78,15 @@ export function broadcastMessage(io, accountId, phoneNumber, message) {
     lastTimestamp: message.timestamp,
     unread: message.direction === 'inbound' ? 1 : 0,
   });
+}
+
+/**
+ * Senha trocada: fecha os painéis abertos da conta. O handshake só olha o JWT
+ * ao conectar, então sem isto um socket aberto com a senha antiga continuaria
+ * recebendo as conversas; na reconexão o token velho já é recusado.
+ */
+export function disconnectAccount(io, accountId) {
+  io.in(accountRoom(accountId)).disconnectSockets(true);
 }
 
 /** Lead fechado: alimenta o painel de métricas em tempo real. */

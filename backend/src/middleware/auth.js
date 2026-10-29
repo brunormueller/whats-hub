@@ -6,7 +6,7 @@
  * que impede uma conta ler a conversa de outra.
  */
 import { verifyToken } from '../services/tokens.js';
-import { getAccount } from '../services/accounts.js';
+import { getAccount, isSessionCurrent } from '../services/accounts.js';
 import { isEvolution } from '../services/provider.js';
 
 function bearer(req) {
@@ -25,6 +25,11 @@ export async function authMiddleware(req, res, next) {
   if (!account) {
     // Token válido de conta que não existe mais.
     return res.status(401).json({ error: 'Conta não encontrada', code: 'unauthenticated' });
+  }
+
+  if (!isSessionCurrent(account, claims)) {
+    // Senha trocada depois deste login (recuperação de conta).
+    return res.status(401).json({ error: 'Sua senha mudou — entre de novo', code: 'unauthenticated' });
   }
 
   req.account = account;

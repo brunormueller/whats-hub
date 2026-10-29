@@ -69,6 +69,8 @@ export function normalizeEmail(email) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+export const isValidEmail = (email) => EMAIL_RE.test(normalizeEmail(email));
+
 /** Erro de entrada do usuário — a rota devolve 400 com esta mensagem. */
 export class AccountError extends Error {
   constructor(message, status = 400) {
@@ -111,6 +113,17 @@ export async function listAccountIds() {
   return accounts().distinct('_id');
 }
 
+/**
+ * Sessão emitida antes da última troca de senha não vale mais: é o que tira
+ * do painel quem estava logado com a senha antiga. `iat` é em segundos, então
+ * a comparação também — o login feito logo após a troca cai no mesmo segundo
+ * e precisa passar.
+ */
+export function isSessionCurrent(account, claims) {
+  if (!account?.passwordChangedAt) return true;
+  return Number(claims?.iat) >= Math.floor(Date.parse(account.passwordChangedAt) / 1000);
+}
+
 /** Sem dados sensíveis: é isso que vai para o front. */
 export function publicAccount(account) {
   if (!account) return null;
@@ -133,6 +146,12 @@ export function instanceTarget(account) {
  * Escrita
  * ------------------------------------------------------------------ */
 
+export function assertPassword(password) {
+  if (String(password || '').length < MIN_PASSWORD) {
+    throw new AccountError(`A senha precisa de pelo menos ${MIN_PASSWORD} caracteres`);
+  }
+}
+
 /**
  * Cria a conta. A instância da Evolution recebe um nome derivado do id, então
  * cada cliente pareia o próprio número sem escolher nome nem colidir com outro.
@@ -148,9 +167,7 @@ export async function createAccount({ name, email, password, company = '' }) {
 
   if (!cleanName) throw new AccountError('Informe seu nome');
   if (!EMAIL_RE.test(cleanEmail)) throw new AccountError('E-mail inválido');
-  if (String(password || '').length < MIN_PASSWORD) {
-    throw new AccountError(`A senha precisa de pelo menos ${MIN_PASSWORD} caracteres`);
-  }
+  assertPassword(password);
 
   const id = randomBytes(6).toString('hex');
 
@@ -205,10 +222,29 @@ export async function markOnboarded(id) {
   return doc ? toAccount(doc) : getAccount(id);
 }
 
+/**
+ * Troca a senha e marca `passwordChangedAt`, que derruba as sessões abertas
+ * antes disso (ver isSessionCurrent). Devolve a conta, ou null se ela sumiu.
+ */
+export async function setPassword(id, password) {
+  assertPassword(password);
+
+  const doc = await accounts().findOneAndUpdate(
+    { _id: id },
+    { $set: { passwordHash: await hashPassword(password), passwordChangedAt: new Date().toISOString() } },
+    { returnDocument: 'after' },
+  );
+
+  return toAccount(doc);
+}
+
 export async function updateAccount(id, patch) {
   // e-mail, id, instância e senha não mudam por patch: os índices apontariam
-  // para o lugar errado e o webhook perderia a conta.
-  const { id: _id, email, instanceName, passwordHash, evolutionUrl, ...safe } = patch || {};
+  // para o lugar errado e o webhook perderia a conta. Senha troca só por
+  // setPassword, que também invalida as sessões.
+  const {
+    id: _id, email, instanceName, passwordHash, passwordChangedAt, evolutionUrl, ...safe
+  } = patch || {};
 
   if (Object.keys(safe).length === 0) return getAccount(id);
 

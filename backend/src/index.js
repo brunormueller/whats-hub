@@ -16,6 +16,7 @@ import { PROVIDER, isEvolution } from './services/provider.js';
 import { aiRuntime } from './services/ai.js';
 import { countAccounts } from './services/accounts.js';
 import { connect, ensureIndexes } from './services/mongo.js';
+import { mailConfigured } from './services/mailer.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -93,8 +94,9 @@ async function start() {
     console.log(`🟢 Servidor rodando na porta ${PORT}`);
     console.log(`   Provider: ${PROVIDER}`);
     console.log(`   Webhook:  POST /webhook`);
-    console.log(`   Auth:     POST /api/auth/signup  |  POST /api/auth/login`);
+    console.log(`   Auth:     POST /api/auth/signup  |  POST /api/auth/login  |  POST /api/auth/forgot-password`);
     console.log(`   API:      /api/messages  /api/leads  /api/metrics  (exigem WhatsApp conectado)`);
+    console.log(`   E-mail:   ${mailConfigured() ? `SMTP ${process.env.SMTP_HOST}` : 'sem SMTP — e-mails vão para o console'}`);
     console.log(`   IA:       ${aiRuntime().configured ? `${aiRuntime().model} (effort ${aiRuntime().effort})` : 'desligada — falta ANTHROPIC_API_KEY'}`);
 
     if (isEvolution) {

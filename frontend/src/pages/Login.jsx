@@ -40,7 +40,7 @@ function Aside() {
   );
 }
 
-export default function Login({ onLogin, onGoSignup, onBack }) {
+export default function Login({ onLogin, onGoSignup, onForgot, onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -106,6 +106,19 @@ export default function Login({ onLogin, onGoSignup, onBack }) {
           }}
           onKeyDown={onEnter}
         />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            margin: "-4px 0 18px",
+          }}
+        >
+          {/* Leva o e-mail já digitado: a pessoa não precisa redigitar */}
+          <TextLink onClick={() => onForgot(email.trim())}>
+            Esqueci minha senha
+          </TextLink>
+        </div>
 
         <ErrorBox>{error}</ErrorBox>
 

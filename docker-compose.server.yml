@@ -1,0 +1,127 @@
+# Stack de produção do servidor: back + Evolution + bancos + túnel Cloudflare.
+# O front fica no Vercel. Segredos vêm de ./.env.server (fora do git).
+#   docker compose -f docker-compose.server.yml --env-file .env.server up -d --build
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: bjjia-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    expose:
+      - "3001"
+    depends_on:
+      - hub-mongo
+      - evolution-api
+
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: evolution-api
+    restart: unless-stopped
+    # Só o loopback: o back fala com a Evolution pela rede do compose.
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SERVER_URL: http://evolution-api:8080
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${POSTGRES_PASSWORD}@evolution-postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: whatsapp_hub
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evolution-redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_LOCAL_ENABLED: "false"
+
+      WEBHOOK_GLOBAL_ENABLED: "true"
+      WEBHOOK_GLOBAL_URL: http://bjjia-backend:3001/webhook
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
+
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: "true"
+      WEBHOOK_EVENTS_APPLICATION_STARTUP: "false"
+      WEBHOOK_EVENTS_QRCODE_UPDATED: "false"
+      WEBHOOK_EVENTS_MESSAGES_SET: "false"
+      WEBHOOK_EVENTS_MESSAGES_UPDATE: "false"
+      WEBHOOK_EVENTS_MESSAGES_DELETE: "false"
+      WEBHOOK_EVENTS_SEND_MESSAGE: "false"
+      WEBHOOK_EVENTS_CONTACTS_SET: "false"
+      WEBHOOK_EVENTS_CONTACTS_UPSERT: "false"
+      WEBHOOK_EVENTS_CONTACTS_UPDATE: "false"
+      WEBHOOK_EVENTS_PRESENCE_UPDATE: "false"
+      WEBHOOK_EVENTS_CHATS_SET: "false"
+      WEBHOOK_EVENTS_CHATS_UPSERT: "false"
+      WEBHOOK_EVENTS_CHATS_UPDATE: "false"
+      WEBHOOK_EVENTS_CHATS_DELETE: "false"
+      WEBHOOK_EVENTS_GROUPS_UPSERT: "false"
+      WEBHOOK_EVENTS_GROUP_UPDATE: "false"
+      WEBHOOK_EVENTS_GROUP_PARTICIPANTS_UPDATE: "false"
+      WEBHOOK_EVENTS_LABELS_EDIT: "false"
+      WEBHOOK_EVENTS_LABELS_ASSOCIATION: "false"
+      WEBHOOK_EVENTS_CALL: "false"
+      WEBHOOK_EVENTS_TYPEBOT_START: "false"
+      WEBHOOK_EVENTS_TYPEBOT_CHANGE_STATUS: "false"
+
+      CONFIG_SESSION_PHONE_CLIENT: WhatsApp Hub
+      QRCODE_LIMIT: "10"
+      LOG_LEVEL: ERROR,WARN,INFO
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      - evolution-postgres
+      - evolution-redis
+
+  evolution-postgres:
+    image: postgres:16-alpine
+    container_name: evolution-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pgdata:/var/lib/postgresql/data
+
+  evolution-redis:
+    image: redis:7-alpine
+    container_name: evolution-redis
+    restart: unless-stopped
+    volumes:
+      - evolution_redis:/data
+
+  hub-mongo:
+    image: mongo:7
+    container_name: hub-mongo
+    restart: unless-stopped
+    command: ["--wiredTigerCacheSizeGB", "1"]
+    ports:
+      - "127.0.0.1:27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: hub
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - hub_mongodata:/data/db
+
+  # Quick tunnel: URL https://*.trycloudflare.com nova a cada recriação do
+  # container. Veja a atual com: docker logs hub-tunnel 2>&1 | grep trycloudflare
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: hub-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://bjjia-backend:3001
+    depends_on:
+      - backend
+
+volumes:
+  evolution_instances:
+  evolution_pgdata:
+  evolution_redis:
+  hub_mongodata:

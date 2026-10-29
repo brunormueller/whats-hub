@@ -57,6 +57,7 @@ export const conversations = () => db().collection('conversations');
 export const messages = () => db().collection('messages');
 export const leads = () => db().collection('leads');
 export const aiConfigs = () => db().collection('aiConfigs');
+export const passwordResets = () => db().collection('passwordResets');
 
 /**
  * Projeção padrão das leituras que vão para o front: `_id` e `accountId` são
@@ -85,6 +86,11 @@ export async function ensureIndexes() {
 
     leads().createIndex({ accountId: 1, phoneNumber: 1 }, { unique: true }),
     leads().createIndex({ accountId: 1, updatedAt: -1 }),
+
+    // TTL: o Mongo apaga o link assim que `expiresAt` passa (a varredura roda
+    // a cada ~60s, por isso a leitura também filtra por `expiresAt`).
+    passwordResets().createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    passwordResets().createIndex({ accountId: 1, createdAt: -1 }),
   ]);
 }
 
