@@ -65,6 +65,29 @@ async function resolveAccount(body) {
 }
 
 /**
+ * Ids de mensagem já processados. O provider reentrega o mesmo evento (retry,
+ * ou webhook global + webhook da instância na mesma URL) e sem isso a IA
+ * responderia uma vez por entrega. Verificação síncrona: duas entregas
+ * simultâneas não passam juntas.
+ */
+const SEEN_TTL_MS = 10 * 60 * 1000;
+const seenMessages = new Map();
+
+function alreadySeen(waMessageId) {
+  if (!waMessageId) return false;
+
+  const now = Date.now();
+  for (const [id, at] of seenMessages) {
+    if (now - at > SEEN_TTL_MS) seenMessages.delete(id);
+    else break; // inseridos em ordem: o resto é mais novo
+  }
+
+  if (seenMessages.has(waMessageId)) return true;
+  seenMessages.set(waMessageId, now);
+  return false;
+}
+
+/**
  * Recebe mensagens enviadas pelos usuários do WhatsApp.
  */
 async function handleInbound(req, res) {
@@ -73,6 +96,8 @@ async function handleInbound(req, res) {
 
   const inbound = extractInboundMessage(req.body);
   if (!inbound) return; // ignora eventos que não são mensagens de texto
+
+  if (alreadySeen(inbound.waMessageId)) return;
 
   const account = await resolveAccount(req.body);
   if (!account) return;

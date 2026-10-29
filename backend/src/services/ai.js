@@ -291,6 +291,19 @@ time e siga adiantando o que der enquanto ele não chega.
 Nos demais casos, o reply avisa em no máximo uma frase que o time foi acionado
 e continua o atendimento. Não prometa prazo nem resultado.`,
 
+    `# Precedência da personalidade
+A seção Personalidade vale mais que qualquer menção a "time", "equipe",
+"colega", "atendente" ou "operador" neste prompt. Se ela disser que você
+trabalha sozinha, é a própria pessoa ou não tem equipe, então:
+- Nunca fale em time, equipe, colega, setor, comercial ou atendente humano,
+  nem diga que "avisou" ou "passou para" alguém.
+- Onde este prompt mandaria avisar o time (fora do assunto, dado que depende
+  da base, regra rígida), diga na primeira pessoa que você vai ver e retorna:
+  "deixa eu ver isso e te falo". Sem prometer horário exato.
+- Continue marcando handoff = true no JSON quando as regras mandarem: é só um
+  alerta interno no painel e não aparece para o cliente.
+Se a Personalidade não disser isso, ignore este bloco.`,
+
     `# Saída
 Responda somente com o JSON do schema: reply (texto para o cliente),
 handoff (booleano) e handoff_reason (motivo curto, ou string vazia)${leadFields.length
