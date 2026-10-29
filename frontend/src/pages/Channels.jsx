@@ -1,4 +1,5 @@
 import { useState } from "react";
+import GoogleCalendarCard from "../components/GoogleCalendarCard.jsx";
 import {
   Hover,
   HOVER_MUTED,
@@ -28,6 +29,7 @@ export default function Channels({
   log,
   onConnect,
   onConfigure,
+  authFetch,
 }) {
   const [showLog, setShowLog] = useState(false);
   const [state, kind] = STATE_PILL[instanceState] || STATE_PILL.loading;
@@ -48,7 +50,10 @@ export default function Channels({
   ];
 
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: "24px 28px 40px" }}>
+    <div
+      className="pg-pad"
+      style={{ flex: 1, overflow: "auto", padding: "24px 28px 40px" }}
+    >
       <div
         style={{
           maxWidth: 1080,
@@ -57,7 +62,10 @@ export default function Channels({
           gap: 20,
         }}
       >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+        <div
+          className="wrap-row tap"
+          style={{ display: "flex", alignItems: "flex-start", gap: 16 }}
+        >
           <div style={{ flex: 1 }}>
             <h1
               style={{
@@ -81,6 +89,7 @@ export default function Channels({
         </div>
 
         <div
+          className="grid-2"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(2,1fr)",
@@ -229,6 +238,8 @@ export default function Channels({
               )}
             </div>
           ))}
+
+          <GoogleCalendarCard authFetch={authFetch} />
         </div>
       </div>
     </div>

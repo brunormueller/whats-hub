@@ -16,6 +16,7 @@ import { sendWhatsAppMessage, sendPresence } from './provider.js';
 import { aiConfigured, generateReply } from './ai.js';
 import { getAiConfig } from './aiConfig.js';
 import { handleLead } from './leads.js';
+import { applyBooking, calendarContext } from './scheduling.js';
 import { instanceTarget } from './accounts.js';
 import {
   formatMessage,
@@ -128,9 +129,26 @@ async function replyOnce(io, account, phoneNumber) {
 
   try {
     const history = await getConversation(account.id, phoneNumber);
-    const result = await generateReply({ config, history });
+    const calendar = await calendarContext(account.id, config, meta);
+    const result = await generateReply({ config, history, calendar });
 
-    const text = result.reply?.trim();
+    // O evento é criado ANTES de enviar: se o horário sumiu no meio da
+    // conversa, o cliente recebe a correção em vez de uma confirmação falsa.
+    const scheduled = calendar
+      ? await applyBooking({ account, config, phoneNumber, result, meta })
+      : null;
+
+    let text = result.reply?.trim();
+
+    if (scheduled?.failed === 'unavailable') {
+      text = 'Opa, vi aqui que esse horário acabou de ser ocupado. '
+        + 'Me diz outro dia ou horário que fica bom pra você?';
+    } else if (scheduled?.failed === 'error') {
+      text = 'Não consegui fechar esse horário na agenda agora, mas já anotei. '
+        + 'Te confirmo em breve.';
+      result.handoff = true;
+      result.handoffReason = 'Falha ao criar o evento no Google Calendar';
+    }
 
     if (text) {
       // Ritmo humano: o indicador aparece e a mensagem só sai depois da pausa.
@@ -147,6 +165,12 @@ async function replyOnce(io, account, phoneNumber) {
       broadcastMessage(io, account.id, phoneNumber, message);
 
       console.log(`🤖 [${account.name}] ${message.formatted}`);
+    }
+
+    if (scheduled?.booking) {
+      const flags = { booking: scheduled.booking };
+      await setConversationFlags(account.id, phoneNumber, flags);
+      broadcastConversationUpdate(io, account.id, phoneNumber, flags);
     }
 
     if (result.handoff) {

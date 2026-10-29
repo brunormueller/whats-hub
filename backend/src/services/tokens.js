@@ -5,7 +5,7 @@
  * e o `crypto` do Node faz o HMAC. Escopo deliberadamente pequeno — só HS256,
  * só os campos que este produto usa. Nada de `alg: none`, nada de JWK remoto.
  */
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const DEFAULT_TTL_SECONDS = 60 * 60 * 24 * 30;   // 30 dias
 
@@ -25,6 +25,11 @@ function secret() {
   }
 
   return secret.ephemeral;
+}
+
+/** Chave de 32 bytes para cifrar dado em repouso, separada por finalidade. */
+export function secretKey(purpose) {
+  return createHash('sha256').update(`${purpose}:${secret()}`).digest();
 }
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url');

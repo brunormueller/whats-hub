@@ -99,6 +99,7 @@ function initialsOf(text) {
 }
 
 export default function Sidebar({
+  open,
   screen,
   onScreen,
   account,
@@ -113,6 +114,7 @@ export default function Sidebar({
 
   return (
     <aside
+      className={`app-sidebar${open ? " is-open" : ""}`}
       style={{
         width: 248,
         flex: "none",
@@ -224,6 +226,7 @@ export default function Sidebar({
       </nav>
 
       <div
+        className="side-foot"
         style={{
           padding: 10,
           borderTop: "1px solid var(--bd)",

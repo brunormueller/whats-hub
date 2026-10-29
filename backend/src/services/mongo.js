@@ -58,6 +58,7 @@ export const messages = () => db().collection('messages');
 export const leads = () => db().collection('leads');
 export const aiConfigs = () => db().collection('aiConfigs');
 export const passwordResets = () => db().collection('passwordResets');
+export const googleConnections = () => db().collection('googleConnections');
 
 /**
  * Projeção padrão das leituras que vão para o front: `_id` e `accountId` são

@@ -163,11 +163,11 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      <header style={{
+      <header className="pg-headpad ai-head" style={{
         flex: 'none', padding: '20px 28px 0',
         borderBottom: '1px solid var(--bd)', background: 'var(--bg)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+        <div className="wrap-row" style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <h1 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 600, letterSpacing: '-.02em' }}>
               Comportamento da IA
@@ -177,7 +177,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
               limites do que pode dizer e quando passar para um humano.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8, paddingTop: 2 }}>
+          <div className="pg-actions tap" style={{ display: 'flex', gap: 8, paddingTop: 2 }}>
             <Hover
               style={{ ...btnGhost(34, 13), opacity: dirty ? 1 : .5 }}
               hoverStyle={dirty ? HOVER_MUTED : undefined}
@@ -190,15 +190,15 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 2, marginTop: 16 }}>
+        <div className="tabs-row" style={{ display: 'flex', gap: 2, marginTop: 16 }}>
           {TABS.map(([k, label]) => (
             <button key={k} style={tabStyle(tab === k)} onClick={() => setTab(k)}>{label}</button>
           ))}
         </div>
       </header>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <div style={{
+      <div className="ai-body" style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+        <div className="ai-main" style={{
           flex: 1, minWidth: 0, overflow: 'auto', padding: '22px 28px 40px',
           display: 'flex', flexDirection: 'column', gap: 16,
         }}>
@@ -210,7 +210,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
                   <div style={cardTitle}>Persona</div>
                   <div style={cardSub}>Como a IA se apresenta e escreve.</div>
                 </div>
-                <div style={{
+                <div className="grid-2" style={{
                   padding: '16px 18px', display: 'grid',
                   gridTemplateColumns: '1fr 1fr', gap: 14,
                 }}>
@@ -241,7 +241,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
                   </label>
                   <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <span style={fieldLabel}>Tom de voz</span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    <div className="tap" style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                       {TONES.map(t => (
                         <button key={t} style={toneStyle(ai.tone === t)} onClick={() => onChange({ tone: t })}>
                           {t}
@@ -298,7 +298,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
                     </div>
                   </div>
                 </div>
-                <div style={{
+                <div className="grid-3" style={{
                   padding: '16px 18px', display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)', gap: 14,
                   opacity: ai.typing === false ? .45 : 1,
@@ -436,7 +436,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
                   border: '1px solid var(--bd)', borderRadius: 9, overflow: 'hidden',
                 }}>
                   {ai.hours.map(h => (
-                    <div key={h.day} style={{
+                    <div key={h.day} className="row-wrap" style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '9px 13px', borderBottom: '1px solid var(--bd)',
                     }}>
@@ -458,7 +458,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {ai.handoffs.map(h => (
-                    <div key={h.k} style={{
+                    <div key={h.k} className="row-wrap" style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '13px 18px', borderBottom: '1px solid var(--bd)',
                     }}>
@@ -587,7 +587,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
                   const dup = f.on && dupKeys.has(key);
 
                   return (
-                    <div key={f.k} style={{
+                    <div key={f.k} className="lead-row" style={{
                       padding: '13px 18px', borderBottom: '1px solid var(--bd)',
                       display: 'grid', gridTemplateColumns: 'auto 1fr 1fr auto auto',
                       gap: 10, alignItems: 'center',
@@ -729,7 +729,7 @@ export default function AiSettings({ ai, onChange, dirty, onPublish, onDiscard, 
         </div>
 
         {/* sandbox */}
-        <aside style={{
+        <aside className="ai-sandbox" style={{
           width: 376, flex: 'none', borderLeft: '1px solid var(--bd)',
           display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--muted2)',
         }}>

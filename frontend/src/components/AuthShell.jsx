@@ -25,6 +25,11 @@ const CSS = `
     .auth-split{grid-template-columns:1fr}
     .auth-aside{display:none}
   }
+  @media (max-width:600px){
+    .auth,.auth-split{min-height:100vh;min-height:100dvh}
+    .auth-panel{justify-content:flex-start;padding:max(28px,env(safe-area-inset-top)) 20px max(32px,env(safe-area-inset-bottom))}
+    .auth-panel h2{font-size:26px !important}
+  }
 `;
 
 const panel = {
@@ -44,7 +49,11 @@ export default function AuthShell({
   asideFirst = false,
 }) {
   const form = (
-    <div key="form" style={{ ...panel, background: "#0A0E0C" }}>
+    <div
+      key="form"
+      className="auth-panel"
+      style={{ ...panel, background: "#0A0E0C" }}
+    >
       <div style={{ maxWidth: 390, width: "100%", margin: "0 auto" }}>
         <Hover
           as="button"

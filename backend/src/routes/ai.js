@@ -27,8 +27,10 @@ router.put('/config', async (req, res) => {
     return res.status(400).json({ error: 'Corpo deve ser o objeto de configuração' });
   }
 
-  // `runtime` é informativo (modelo/effort do servidor), não faz parte da config
-  const { runtime, ...clean } = patch;
+  // `runtime` é informativo (modelo/effort do servidor), não faz parte da config.
+  // `calendar` tem rota própria (/api/google/settings): esta tela publica uma
+  // cópia inteira da config e reverteria os ajustes de agenda.
+  const { runtime, calendar, ...clean } = patch;
 
   const config = await saveAiConfig(req.account.id, clean);
   res.json({ ...config, runtime: aiRuntime() });

@@ -25,7 +25,7 @@ export default function Onboarding({ account, authFetch, onConnected, onLogout }
       minHeight: '100vh', background: 'var(--muted2)', color: 'var(--fg)', fontSize: 14,
     }}>
       <header style={{ borderBottom: '1px solid var(--bd)', background: 'var(--bg)' }}>
-        <div style={{
+        <div className="onb-pad" style={{
           maxWidth: 940, margin: '0 auto', padding: '0 28px', height: 62,
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
@@ -50,7 +50,7 @@ export default function Onboarding({ account, authFetch, onConnected, onLogout }
         </div>
       </header>
 
-      <main style={{
+      <main className="onb-pad onb-grid" style={{
         maxWidth: 940, margin: '0 auto', padding: '40px 28px 60px',
         display: 'grid', gridTemplateColumns: '1fr 420px', gap: 22, alignItems: 'start',
       }}>

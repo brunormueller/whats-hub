@@ -7,6 +7,7 @@
  * AI_DEFAULTS do front — servem de fallback enquanto nada foi publicado.
  */
 import { aiConfigs } from './mongo.js';
+import { CALENDAR_DEFAULTS } from './googleCalendar.js';
 
 export const AI_CONFIG_DEFAULTS = {
   // Liga/desliga a resposta automática (é o switch "IA ativa" do inbox)
@@ -42,6 +43,9 @@ export const AI_CONFIG_DEFAULTS = {
   // Aviso no WhatsApp de quem cuida dos leads (vazio = só grava e avisa o painel)
   notifyOnLead: true,
   notifyPhone: '',
+
+  // Agendamento no Google Calendar (a conexão da conta fica em googleConnections)
+  calendar: { ...CALENDAR_DEFAULTS },
 
   agentName: 'Nina',
   language: 'Português (BR)',

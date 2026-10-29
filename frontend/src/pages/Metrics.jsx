@@ -288,6 +288,7 @@ export default function Metrics({ authFetch, onGoInbox }) {
       }}
     >
       <header
+        className="pg-headpad wrap-row"
         style={{
           flex: "none",
           padding: "20px 28px 18px",
@@ -316,7 +317,10 @@ export default function Metrics({ authFetch, onGoInbox }) {
         </div>
 
         {/* filtros em uma linha, acima dos gráficos */}
-        <div style={{ display: "flex", gap: 6, paddingTop: 2 }}>
+        <div
+          className="pg-actions tap"
+          style={{ display: "flex", gap: 6, paddingTop: 2 }}
+        >
           {RANGES.map((r) => (
             <button
               key={r}
@@ -347,6 +351,7 @@ export default function Metrics({ authFetch, onGoInbox }) {
       </header>
 
       <div
+        className="pg-pad"
         style={{
           flex: 1,
           minHeight: 0,
@@ -378,6 +383,7 @@ export default function Metrics({ authFetch, onGoInbox }) {
         {data && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div
+              className="grid-4"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
@@ -404,6 +410,7 @@ export default function Metrics({ authFetch, onGoInbox }) {
 
             <div style={{ ...card, padding: "18px 20px" }}>
               <div
+                className="wrap-row"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -449,6 +456,7 @@ export default function Metrics({ authFetch, onGoInbox }) {
             </div>
 
             <div
+              className="grid-2"
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
@@ -515,6 +523,7 @@ export default function Metrics({ authFetch, onGoInbox }) {
             {/* a tabela é a leitura alternativa dos mesmos dados */}
             <div style={{ ...card, overflow: "hidden" }}>
               <div
+                className="wrap-row"
                 style={{
                   padding: "16px 18px",
                   borderBottom: "1px solid var(--bd)",

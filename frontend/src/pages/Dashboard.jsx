@@ -10,6 +10,13 @@ import Team from "./Team.jsx";
 import Channels from "./Channels.jsx";
 import { AI_DEFAULTS } from "../data/defaults.js";
 
+// Título da barra superior no celular (a sidebar fica escondida na gaveta)
+const SCREEN_TITLES = {
+  dashboard: "Painel",
+  channels: "Canais",
+  ai: "Comportamento da IA",
+};
+
 /**
  * Painel da conta logada.
  *
@@ -31,7 +38,11 @@ export default function Dashboard({
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
 
-  const [screen, setScreen] = useState("dashboard");
+  // Volta do OAuth do Google (?google=…) cai direto na tela de canais
+  const [screen, setScreen] = useState(() =>
+    new URLSearchParams(window.location.search).has("google") ? "channels" : "dashboard",
+  );
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [aiEnabled, setAiEnabled] = useState(true);
   const [convMeta, setConvMeta] = useState({});
@@ -233,6 +244,7 @@ export default function Dashboard({
 
   return (
     <div
+      className="app-shell"
       style={{
         display: "flex",
         height: "100vh",
@@ -244,9 +256,29 @@ export default function Dashboard({
         fontSize: 14,
       }}
     >
+      {/* Só aparecem até 960px (index.html): a sidebar vira gaveta. */}
+      <div className="app-topbar">
+        <button
+          type="button"
+          aria-label="Abrir menu"
+          onClick={() => setMenuOpen(true)}
+        >
+          ☰
+        </button>
+        <span>{SCREEN_TITLES[screen]}</span>
+      </div>
+      <div
+        className={`app-backdrop${menuOpen ? " is-open" : ""}`}
+        onClick={() => setMenuOpen(false)}
+      />
+
       <Sidebar
+        open={menuOpen}
         screen={screen}
-        onScreen={setScreen}
+        onScreen={(next) => {
+          setScreen(next);
+          setMenuOpen(false);
+        }}
         account={account}
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -260,6 +292,7 @@ export default function Dashboard({
         style={{
           flex: 1,
           minWidth: 0,
+          minHeight: 0,
           display: "flex",
           flexDirection: "column",
           background: "var(--bg)",
@@ -309,6 +342,7 @@ export default function Dashboard({
             log={instanceLog}
             onConnect={() => setConnectOpen(true)}
             onConfigure={() => setScreen("ai")}
+            authFetch={authFetch}
           />
         )}
       </main>

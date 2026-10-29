@@ -12,12 +12,13 @@ export default function ConnectModal({
     <div
       style={{
         position: 'fixed', inset: 0, background: 'rgba(9,9,11,.55)',
-        display: 'grid', placeItems: 'center', zIndex: 50,
+        display: 'grid', placeItems: 'center', zIndex: 50, padding: 12,
       }}
       onClick={(e) => { if (onClose && e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        width: 440, background: 'var(--card)', border: '1px solid var(--bd)',
+        width: 440, maxWidth: '100%', maxHeight: '100%', overflow: 'auto',
+        background: 'var(--card)', border: '1px solid var(--bd)',
         borderRadius: 14, boxShadow: '0 24px 60px rgba(0,0,0,.35)', padding: 22,
       }}>
         <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-.01em', marginBottom: 4 }}>

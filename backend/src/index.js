@@ -10,6 +10,7 @@ import instanceRouter from './routes/instance.js';
 import aiRouter from './routes/ai.js';
 import leadsRouter from './routes/leads.js';
 import metricsRouter from './routes/metrics.js';
+import googleRouter from './routes/google.js';
 import { setupSocket } from './services/socket.js';
 import { authMiddleware, requireOnboarded } from './middleware/auth.js';
 import { PROVIDER, isEvolution } from './services/provider.js';
@@ -39,6 +40,10 @@ app.use('/webhook', webhookRouter);
 
 // Cadastro e login — as únicas rotas de API sem sessão
 app.use('/api/auth', authRouter);
+
+// Google Calendar: o callback do OAuth é público, as demais rotas se
+// autenticam sozinhas (ver routes/google.js)
+app.use('/api/google', googleRouter);
 
 // Pareamento do número: exige sessão, mas NÃO exige onboarding concluído —
 // é justamente a tela que conclui o onboarding.

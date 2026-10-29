@@ -175,6 +175,18 @@ const CSS = `
   .lp ::selection{background:#3DDC97;color:#06110B}
   .lp summary::-webkit-details-marker{display:none}
   .lp details[open] .lp-chev{transform:rotate(45deg)}
+  @media (max-width:860px){
+    .lp img,.lp svg,.lp video{max-width:100%}
+    .lp header nav{display:none}
+    .lp header > div{padding-left:20px !important;padding-right:20px !important;gap:12px !important}
+    .lp section{padding-left:20px !important;padding-right:20px !important}
+    .lp [style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr) !important;gap:28px !important}
+    .lp h1{font-size:38px !important;line-height:1.08 !important}
+    .lp h2{font-size:28px !important;line-height:1.15 !important}
+  }
+  @media (max-width:480px){
+    .lp header > div > div button{padding:9px 12px !important}
+  }
 `;
 
 export default function Landing({ onSignup, onLogin, showMetrics = true }) {

@@ -51,7 +51,7 @@ export function activeLeadFields(config) {
  * propriedades de `lead.fields`. Modo estrito da API exige todas as chaves em
  * `required`, então "ainda não sei" é string vazia, não campo ausente.
  */
-function replySchema(leadFields) {
+function replySchema(leadFields, calendar = false) {
   const properties = {
     reply: {
       type: 'string',
@@ -68,6 +68,21 @@ function replySchema(leadFields) {
       description: 'Motivo curto do handoff. String vazia quando handoff é false.',
     },
   };
+
+  if (calendar) {
+    properties.booking = {
+      type: 'object',
+      description:
+        'Preencha SOMENTE na mensagem em que o cliente confirma um horário '
+        + 'exato oferecido por você. Em qualquer outra, date e time vão vazios.',
+      properties: {
+        date: { type: 'string', description: 'Dia combinado, YYYY-MM-DD. Vazio se não há confirmação.' },
+        time: { type: 'string', description: 'Hora combinada, HH:MM (24h). Vazio se não há confirmação.' },
+      },
+      required: ['date', 'time'],
+      additionalProperties: false,
+    };
+  }
 
   if (leadFields.length) {
     const fields = {};
@@ -162,7 +177,7 @@ function list(items, fallback) {
   return items.map((i) => `- ${i}`).join('\n');
 }
 
-export function buildSystemPrompt(config) {
+export function buildSystemPrompt(config, { calendar = false } = {}) {
   const {
     agentName = 'Assistente',
     language = 'Português (BR)',
@@ -291,6 +306,26 @@ time e siga adiantando o que der enquanto ele não chega.
 Nos demais casos, o reply avisa em no máximo uma frase que o time foi acionado
 e continua o atendimento. Não prometa prazo nem resultado.`,
 
+    calendar
+      ? `# Agenda
+Você marca horários direto na agenda. Os horários livres de verdade chegam
+no contexto operacional de cada mensagem ("Horários livres"); essa lista é a
+única fonte de verdade sobre disponibilidade.
+- Quando o cliente quiser agendar, ofereça 2 ou 3 opções tiradas dessa lista,
+  em linguagem natural ("amanhã às 14h ou quinta às 10h"). Nunca ofereça nem
+  aceite horário fora das janelas livres, e nunca invente disponibilidade.
+- Se o cliente pedir um horário que não está livre, diga que não dá e ofereça
+  os mais próximos que estão.
+- Só quando o cliente confirmar UM horário exato, preencha booking.date e
+  booking.time e responda confirmando dia e hora. O agendamento acontece
+  depois da sua resposta: confirme com naturalidade, sem dizer "vou tentar".
+- Se o contexto disser que já existe um agendamento, não crie outro (deixe
+  booking vazio) e lembre o horário combinado. Pedido de remarcar ou cancelar:
+  marque handoff e diga que vai ajustar manualmente.
+- Os dias da semana e datas do contexto já estão no fuso certo: use-os como
+  vieram.`
+      : '',
+
     `# Precedência da personalidade
 A seção Personalidade vale mais que qualquer menção a "time", "equipe",
 "colega", "atendente" ou "operador" neste prompt. Se ela disser que você
@@ -332,7 +367,7 @@ function toMessages(history = []) {
   return mapped;
 }
 
-function runtimeContext(now) {
+function runtimeContext(now, calendar) {
   const stamp = new Intl.DateTimeFormat('pt-BR', {
     timeZone: TIMEZONE,
     weekday: 'long',
@@ -343,8 +378,17 @@ function runtimeContext(now) {
     minute: '2-digit',
   }).format(now);
 
-  return `Contexto operacional (não repasse ao cliente): agora é ${stamp} (${TIMEZONE}). `
+  const base = `Contexto operacional (não repasse ao cliente): agora é ${stamp} (${TIMEZONE}). `
     + 'Use isso para decidir se o time humano está em horário de atendimento.';
+
+  if (!calendar) return base;
+
+  const booked = calendar.booked
+    ? `\nJá existe agendamento desta conversa: ${calendar.booked}.`
+    : '';
+
+  return `${base}\nHorários livres (duração de ${calendar.durationMin} min cada atendimento):\n`
+    + `${calendar.windows}${booked}`;
 }
 
 // O contexto volátil fica DEPOIS do breakpoint de cache: o system prompt é
@@ -371,13 +415,13 @@ function safeParse(text) {
  * @param {Array}    params.history  mensagens da conversa (a última é a do cliente)
  * @returns {Promise<{reply: string, handoff: boolean, handoffReason: string, model: string, usage: object}>}
  */
-export async function generateReply({ config, history = [], now = new Date() }) {
+export async function generateReply({ config, history = [], now = new Date(), calendar = null }) {
   const messages = toMessages(history);
   if (!messages.length) {
     throw new Error('Nenhuma mensagem do cliente para responder');
   }
 
-  const contextText = runtimeContext(now);
+  const contextText = runtimeContext(now, calendar);
   const lastIsClient = messages[messages.length - 1].role === 'user';
   const leadFields = activeLeadFields(config);
 
@@ -386,12 +430,12 @@ export async function generateReply({ config, history = [], now = new Date() }) 
     max_tokens: MAX_TOKENS,
     system: [{
       type: 'text',
-      text: buildSystemPrompt(config),
+      text: buildSystemPrompt(config, { calendar: Boolean(calendar) }),
       cache_control: { type: 'ephemeral' },
     }],
     output_config: {
       effort: EFFORT,
-      format: { type: 'json_schema', schema: replySchema(leadFields) },
+      format: { type: 'json_schema', schema: replySchema(leadFields, Boolean(calendar)) },
     },
     // Instrução de operador no fim do histórico: preserva o prefixo em cache
     // (mensagens de role "system" existem no Claude Opus 5 / 4.8 / Fable 5) e
@@ -444,10 +488,20 @@ export async function generateReply({ config, history = [], now = new Date() }) 
     handoff: Boolean(parsed.handoff),
     handoffReason: String(parsed.handoff_reason || '').trim(),
     lead: readLead(parsed.lead, leadFields),
+    booking: calendar ? readBooking(parsed.booking) : null,
     model: response.model,
     usage: response.usage,
     stopReason: response.stop_reason,
   };
+}
+
+/** Horário confirmado pelo cliente, ou null. Formato inválido vale como "sem confirmação". */
+function readBooking(raw) {
+  const date = String(raw?.date || '').trim();
+  const time = String(raw?.time || '').trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return null;
+  return { date, time };
 }
 
 /**
